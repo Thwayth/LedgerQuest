@@ -14,9 +14,12 @@ const WEB_APP_URL = process.env.WEB_APP_URL;
 const PORT = Number(process.env.PORT || 10000);
 
 // Optional: your personal numeric Telegram ID, so the bot can notify you
-// when someone claims a reward. The app still works without it (it just
-// won't be able to send you the notification, and will log a warning).
+// when someone claims a reward.
 const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID || null;
+
+// Optional: your public Telegram @username (without the @), used to build
+// a "message me" link so the user can open a chat with you directly.
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME || null;
 
 if (!BOT_TOKEN) {
   console.error("BOT_TOKEN is missing.");
@@ -133,6 +136,16 @@ function getUser(id) {
     });
   }
   return users.get(id);
+}
+
+function buildWinMessage(ctx, reward) {
+  const who = ctx.from.username ? `@${ctx.from.username}` : ctx.from.first_name || "без имени";
+  return (
+    `🎁 Выигрыш в Ledger Quest\n\n` +
+    `Пользователь: ${who}\n` +
+    `Telegram ID: ${ctx.from.id}\n` +
+    `Награда: ${reward}`
+  );
 }
 
 // Telegram Web App initData validation.
@@ -315,28 +328,12 @@ bot.start(async ctx => {
     }
 
     await ctx.reply(
-      `🎁 Поздравляем!\n\n` +
-      `Твоя награда за сегодняшний квест:\n${user.reward}\n\n` +
-      `Мы свяжемся с тобой в этом чате.`
+      "Готов ли ты забрать выигрыш?",
+      Markup.inlineKeyboard([
+        [Markup.button.callback("Да", "claim_yes")],
+        [Markup.button.callback("Позже", "claim_later")]
+      ])
     );
-
-    if (ADMIN_CHAT_ID) {
-      const who = ctx.from.username ? `@${ctx.from.username}` : ctx.from.first_name || "без имени";
-      try {
-        await bot.telegram.sendMessage(
-          ADMIN_CHAT_ID,
-          `🏆 Новый выигрыш в Ledger Quest\n\n` +
-          `Пользователь: ${who}\n` +
-          `Telegram ID: ${ctx.from.id}\n` +
-          `Награда: ${user.reward}`
-        );
-      } catch (error) {
-        console.error("Could not notify admin:", error.message);
-      }
-    } else {
-      console.warn("ADMIN_CHAT_ID is not set — admin notification skipped.");
-    }
-
     return;
   }
 
@@ -348,6 +345,53 @@ bot.start(async ctx => {
     Markup.inlineKeyboard([
       Markup.button.webApp("🚀 Open Ledger Quest", WEB_APP_URL)
     ])
+  );
+});
+
+bot.action("claim_yes", async ctx => {
+  await ctx.answerCbQuery();
+
+  const user = getUser(String(ctx.from.id));
+
+  if (!user.reward) {
+    await ctx.editMessageText(
+      "Похоже, награда уже не найдена. Попробуй пройти квест заново."
+    );
+    return;
+  }
+
+  const message = buildWinMessage(ctx, user.reward);
+
+  // Reliable automatic notification to the admin.
+  if (ADMIN_CHAT_ID) {
+    try {
+      await bot.telegram.sendMessage(ADMIN_CHAT_ID, message);
+    } catch (error) {
+      console.error("Could not notify admin:", error.message);
+    }
+  } else {
+    console.warn("ADMIN_CHAT_ID is not set — admin notification skipped.");
+  }
+
+  // Also offer the user a direct link to message the admin personally,
+  // with the win details pre-filled in the message box.
+  if (ADMIN_USERNAME) {
+    const url = `https://t.me/${ADMIN_USERNAME}?text=${encodeURIComponent(message)}`;
+    await ctx.editMessageText(
+      "🎁 Отлично! Нажми кнопку ниже, чтобы написать мне лично.",
+      Markup.inlineKeyboard([Markup.button.url("Написать мне", url)])
+    );
+  } else {
+    await ctx.editMessageText(
+      "🎁 Отлично! Мы уже получили информацию и скоро свяжемся с тобой."
+    );
+  }
+});
+
+bot.action("claim_later", async ctx => {
+  await ctx.answerCbQuery();
+  await ctx.editMessageText(
+    "Хорошо. Нажми Claim Reward ещё раз, когда будешь готов забрать выигрыш."
   );
 });
 
