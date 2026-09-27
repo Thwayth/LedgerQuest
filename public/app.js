@@ -215,6 +215,9 @@ function claimReward() {
 
   if (tg?.openTelegramLink) {
     tg.openTelegramLink(url);
+    // Close the Mini App right away instead of leaving it hanging open
+    // in the background after the user is sent to the bot chat.
+    tg.close();
   } else {
     window.open(url, "_blank");
   }
