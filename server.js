@@ -18,7 +18,7 @@ const PORT = Number(process.env.PORT || 10000);
 const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID || null;
 
 // Optional: your public Telegram @username (without the @), used to build
-// a "message me" link so the user can open a chat with you directly.
+// a "claim reward" link so the user can open a chat with you directly.
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || null;
 
 if (!BOT_TOKEN) {
@@ -138,7 +138,9 @@ function getUser(id) {
   return users.get(id);
 }
 
-function buildWinMessage(ctx, reward) {
+// Message the bot sends to the admin automatically — keeps identifying
+// info since this is the admin's only reliable way to know who to reward.
+function buildAdminMessage(ctx, reward) {
   const who = ctx.from.username ? `@${ctx.from.username}` : ctx.from.first_name || "без имени";
   return (
     `🎁 Выигрыш в Ledger Quest\n\n` +
@@ -146,6 +148,12 @@ function buildWinMessage(ctx, reward) {
     `Telegram ID: ${ctx.from.id}\n` +
     `Награда: ${reward}`
   );
+}
+
+// Message pre-filled in the user's own chat with the admin — no need to
+// repeat the user's name/id here, Telegram already shows who's sending it.
+function buildClaimMessage(reward) {
+  return `Хочу забрать награду в Ledger Quest 🎁\nВыиграл: ${reward}`;
 }
 
 // Telegram Web App initData validation.
@@ -360,12 +368,10 @@ bot.action("claim_yes", async ctx => {
     return;
   }
 
-  const message = buildWinMessage(ctx, user.reward);
-
-  // Reliable automatic notification to the admin.
+  // Reliable automatic notification to the admin — keeps who/what info.
   if (ADMIN_CHAT_ID) {
     try {
-      await bot.telegram.sendMessage(ADMIN_CHAT_ID, message);
+      await bot.telegram.sendMessage(ADMIN_CHAT_ID, buildAdminMessage(ctx, user.reward));
     } catch (error) {
       console.error("Could not notify admin:", error.message);
     }
@@ -373,13 +379,12 @@ bot.action("claim_yes", async ctx => {
     console.warn("ADMIN_CHAT_ID is not set — admin notification skipped.");
   }
 
-  // Also offer the user a direct link to message the admin personally,
-  // with the win details pre-filled in the message box.
+  // Also offer the user a direct link to message the admin personally.
   if (ADMIN_USERNAME) {
-    const url = `https://t.me/${ADMIN_USERNAME}?text=${encodeURIComponent(message)}`;
+    const url = `https://t.me/${ADMIN_USERNAME}?text=${encodeURIComponent(buildClaimMessage(user.reward))}`;
     await ctx.editMessageText(
-      "🎁 Отлично! Нажми кнопку ниже, чтобы написать мне лично.",
-      Markup.inlineKeyboard([Markup.button.url("Написать мне", url)])
+      "🎁 Отлично! Нажми кнопку ниже, чтобы забрать награду.",
+      Markup.inlineKeyboard([Markup.button.url("Забрать награду", url)])
     );
   } else {
     await ctx.editMessageText(
