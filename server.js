@@ -8,7 +8,7 @@ import { fileURLToPath } from "url";
 
 import { createStore } from "./store.js";
 import { questionsForDay } from "./questions.js";
-import { REWARD_TIERS, rewardInfo } from "./rewards.js";
+import { REWARD_TIERS, rewardInfo, exampleTitle } from "./rewards.js";
 import { rankForXp, boostedRewardForScore } from "./ranks.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -272,7 +272,9 @@ app.get("/api/daily", requireCaller, asyncRoute(async (req, res) => {
     answered,
     reward: rewardToday ? rewardInfo(result.reward) : null,
     rewardClaimed: rewardToday ? result.rewardClaimed : false,
-    rewardTiers: REWARD_TIERS.filter(Boolean).map(({ tier, title }) => ({ tier, title })),
+    // "example" is just one illustrative title per tier — the reward actually
+    // earned is picked from several variants, so it won't always match this.
+    rewardTiers: REWARD_TIERS.filter(Boolean).map(({ tier }) => ({ tier, example: exampleTitle(tier) })),
     completed: answered.length >= questions.length
   });
 }));
@@ -313,7 +315,10 @@ app.post("/api/answer", requireCaller, asyncRoute(async (req, res) => {
       // Reward depends on how many answers were correct — and, from the
       // "Аналитик" rank up, a strong result can bump it up a tier.
       // With 0 correct there's no new reward, and an older unclaimed one is kept.
-      const earned = boostedRewardForScore(user.score, questions.length, rankForXp(user.xp).index);
+      // Seeded by day+user so a specific variant is picked once per day, not
+      // re-rolled every time (and never coincides with the question shuffle seed).
+      const rewardSeed = `${user.day}:${user.id}`;
+      const earned = boostedRewardForScore(user.score, questions.length, rankForXp(user.xp).index, rewardSeed);
       if (earned) {
         user.reward = earned.title;
         user.rewardDay = user.day;

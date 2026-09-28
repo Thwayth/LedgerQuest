@@ -2,7 +2,7 @@
 // Higher ranks also make top rewards a bit more likely for a strong result
 // (see boostedRewardForScore below).
 
-import { REWARD_TIERS, rewardForScore } from "./rewards.js";
+import { REWARD_TIERS, levelForScore, rewardForLevel } from "./rewards.js";
 
 export const RANKS = [
   { name: "Новичок", icon: "🌱", min: 0 },
@@ -46,15 +46,12 @@ function boostForRank(rankIndex, ratio) {
   return 0;
 }
 
-export function boostedRewardForScore(score, total, rankIndex) {
-  const base = rewardForScore(score, total);
-  if (!base) return base;
+export function boostedRewardForScore(score, total, rankIndex, seed) {
+  const level = levelForScore(score, total);
+  if (level <= 0) return null;
 
   const ratio = total ? score / total : 0;
   const boost = boostForRank(rankIndex, ratio);
-  if (boost <= 0) return base;
-
-  const baseIndex = REWARD_TIERS.findIndex(r => r?.title === base.title);
-  const boostedIndex = Math.min(REWARD_TIERS.length - 1, baseIndex + boost);
-  return REWARD_TIERS[boostedIndex] || base;
+  const boostedLevel = Math.min(REWARD_TIERS.length - 1, level + boost);
+  return rewardForLevel(boostedLevel, seed);
 }

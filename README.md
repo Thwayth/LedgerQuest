@@ -88,17 +88,21 @@ The set stays the same if the player reopens the app on the same day.
 Add more questions to the pool to make the rotation less repetitive.
 
 ## Rewards
-The reward depends on the number of correct answers (0 correct = no reward):
+The reward tier depends on the number of correct answers (0 correct = no reward):
 
-| Correct | Tier | Reward |
-|---|---|---|
-| 1 | COMMON | Гайд «5 ошибок, которые сливают депозит» |
-| 2 | UNCOMMON | Разбор твоей монеты от аналитика |
-| 3 | RARE | Доступ в закрытое комьюнити на 7 дней |
-| 4 | EPIC | Сделка на 5X |
-| 5 | LEGENDARY | Сигнал на 300% |
+| Correct | Tier |
+|---|---|
+| 1 | COMMON |
+| 2 | UNCOMMON |
+| 3 | RARE |
+| 4 | EPIC |
+| 5 | LEGENDARY |
 
-Edit titles and descriptions in `rewards.js`.
+Each tier has several possible rewards (`variants` in `rewards.js`), so the
+same score doesn't always hand out the exact same prize — one variant is
+picked per player per day (seeded by day + user id, so it's stable if they
+reopen the app the same day, but varies day to day and between players).
+Add/edit variants in `rewards.js`; titles must stay unique across the file.
 
 ## Ranks
 XP now means something: it moves the player up a rank, shown instead of a

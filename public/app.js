@@ -76,7 +76,7 @@ const pick = list => list[Math.floor(Math.random() * list.length)];
 
 const LINES = {
   greet: {
-    morning: ["Доброе утро. Кофе допит? Тогда начинаем.", "Утро, рынок только просыпается. А ты уже здесь."],
+    morning: ["Доброе утро. Кофе допит? Тогда начинаем.", "Утро, рынок только просыпает. А ты уже здесь."],
     day: ["Привет. Пять вопросов, и день станет продуктивнее.", "О, ты вовремя. Я как раз подобрала вопросы."],
     evening: ["Добрый вечер. Самое время проверить голову.", "Вечерняя сессия? Уважаю."],
     night: ["Не спится? Рынок тоже никогда не спит.", "Ночной трейдер. Проверим, не устал ли мозг."]
@@ -574,7 +574,7 @@ function renderReward() {
   if (!reward) return;
 
   const tiers = state.rewardTiers;
-  const level = tiers.findIndex(t => t.title === reward.title) + 1;
+  const level = tiers.findIndex(t => t.tier === reward.tier) + 1;
 
   $("reward-box").dataset.tier = reward.tier || "";
   $("reward-tier").textContent = TIER_LABEL[reward.tier] || reward.tier || "";
@@ -596,9 +596,9 @@ function renderReward() {
   const next = $("reward-next");
   if (level && top && level < tiers.length) {
     next.innerHTML = "";
-    next.append("За идеальный результат: ");
+    next.append("За идеальный результат, например: ");
     const b = document.createElement("b");
-    b.textContent = top.title;
+    b.textContent = top.example;
     next.append(b);
     next.classList.remove("hidden");
   } else {
