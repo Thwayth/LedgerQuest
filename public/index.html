@@ -21,7 +21,7 @@
           <div class="brand-sub">QUEST</div>
         </div>
       </div>
-      <div class="profile-pill">
+      <div class="profile-pill" id="top-pill" role="button" tabindex="0" aria-label="Открыть профиль">
         <span id="top-xp">0 XP</span>
         <span class="dot"></span>
         <span id="top-streak">0 🔥</span>
@@ -132,9 +132,40 @@
       </div>
     </section>
 
+    <section id="profile-screen" class="screen">
+      <div class="profile-head">
+        <div class="result-avatar small" data-emotion="neutral">
+          <div class="avatar-frame"><div class="avatar-led"></div><div class="avatar-eye left"></div><div class="avatar-eye right"></div></div>
+        </div>
+        <div>
+          <div class="eyebrow">ПРОФИЛЬ</div>
+          <h1 class="profile-name" id="profile-name">трейдер</h1>
+        </div>
+      </div>
+
+      <div class="profile-stats">
+        <div><strong id="p-xp">0</strong><span>ОПЫТ, XP</span></div>
+        <div><strong id="p-streak">0</strong><span>СЕРИЯ СЕЙЧАС</span></div>
+        <div><strong id="p-best">0</strong><span>ЛУЧШАЯ СЕРИЯ</span></div>
+        <div><strong id="p-quests">0</strong><span>КВЕСТОВ ПРОЙДЕНО</span></div>
+      </div>
+
+      <div class="history">
+        <div class="history-head">
+          <span class="label">ИСТОРИЯ НАГРАД</span>
+          <span class="history-count" id="history-count"></span>
+        </div>
+        <div class="history-list" id="history-list"></div>
+        <div class="history-empty hidden" id="history-empty">
+          Здесь пока пусто. Пройди квест дня, и сюда попадёт первая награда.
+        </div>
+        <p class="history-rule">Незабранная награда сгорает, когда ты получаешь следующую.</p>
+      </div>
+    </section>
+
     <nav class="bottom-nav">
       <button class="nav-item active" data-screen="home-screen"><span>◆</span>КВЕСТ</button>
-      <button class="nav-item" id="stats-nav"><span>◈</span>СТАТИСТИКА</button>
+      <button class="nav-item" data-screen="profile-screen"><span>◈</span>ПРОФИЛЬ</button>
     </nav>
   </main>
 
