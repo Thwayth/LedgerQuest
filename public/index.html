@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -21,7 +21,9 @@
           <div class="brand-sub">QUEST</div>
         </div>
       </div>
-      <div class="profile-pill">
+      <div class="profile-pill" id="top-pill" role="button" tabindex="0" aria-label="Открыть профиль">
+        <span id="top-rank">🌱 Новичок</span>
+        <span class="dot"></span>
         <span id="top-xp">0 XP</span>
         <span class="dot"></span>
         <span id="top-streak">0 🔥</span>
@@ -31,84 +33,154 @@
     <section id="home-screen" class="screen active">
       <div class="hero-card">
         <div class="hero-glow"></div>
-        <img class="bot-image" src="/assets/ledger-bot.png" alt="Ledger Bot">
+        <img class="bot-image" src="/assets/ledger-bot.png" alt="Ведущая Ledger Quest">
         <div class="hero-copy">
-          <div class="eyebrow">DAILY INTELLIGENCE QUEST</div>
-          <h1>Good to see you,<br><span id="user-name">Quest</span>.</h1>
-          <p>Five questions. Five minutes. Sharpen your edge.</p>
+          <div class="eyebrow">ЕЖЕДНЕВНЫЙ КВЕСТ</div>
+          <h1>Рады видеть,<br><span id="user-name">трейдер</span>.</h1>
+          <p>Пять вопросов. Пять минут. Прокачай своё преимущество.</p>
         </div>
       </div>
 
       <div class="quest-card">
         <div class="quest-head">
           <div>
-            <span class="label">TODAY'S QUEST</span>
-            <h2>Market Intelligence</h2>
+            <span class="label">КВЕСТ ДНЯ</span>
+            <h2>Рыночный интеллект</h2>
           </div>
-          <div class="count">05</div>
+          <div class="count" id="home-count">05</div>
         </div>
         <div class="progress-track"><div class="progress-fill" id="home-progress"></div></div>
         <div class="quest-meta">
-          <span id="home-score">0 / 5 completed</span>
-          <span>+10 XP each</span>
+          <span id="home-score">Пройдено 0 из 5</span>
+          <span>+10 XP за верный ответ</span>
         </div>
-        <button class="primary-btn" id="start-btn">START QUEST <span>→</span></button>
+        <button class="primary-btn" id="start-btn">НАЧАТЬ КВЕСТ <span>→</span></button>
       </div>
     </section>
 
     <section id="quiz-screen" class="screen">
       <div class="quiz-top">
-        <button class="back-btn" id="back-btn">←</button>
+        <button class="back-btn" id="back-btn" aria-label="На главную">←</button>
         <div class="quiz-progress-wrap">
-          <div class="quiz-counter" id="quiz-counter">01 / 05</div>
+          <div class="quiz-counter" id="quiz-counter">ВОПРОС 01 / 05</div>
           <div class="progress-track"><div class="progress-fill" id="quiz-progress"></div></div>
         </div>
       </div>
 
-      <div class="bot-row">
-        <img class="bot-mini" src="/assets/ledger-bot.png" alt="">
-        <div class="bot-message" id="bot-message">Let's see what you know.</div>
+      <div class="avatar-stage" id="avatar" data-emotion="neutral" title="Ткни меня">
+        <div class="avatar-glow"></div>
+        <div class="avatar-frame" id="avatar-frame">
+          <div class="avatar-led"></div>
+          <div class="avatar-eye left"></div>
+          <div class="avatar-eye right"></div>
+        </div>
+        <div class="avatar-scan"></div>
+        <div class="avatar-fx" id="avatar-fx" aria-hidden="true"></div>
+        <div class="avatar-bubble">
+          <div class="avatar-mood"><span class="mood-dot"></span><span id="avatar-mood">НА СВЯЗИ</span></div>
+          <div class="avatar-text" id="bot-message"></div>
+        </div>
       </div>
 
       <div class="question-card">
-        <div class="category" id="question-category">MARKETS</div>
+        <div class="category" id="question-category">РЫНКИ</div>
         <h2 id="question-text"></h2>
         <div class="options" id="options"></div>
       </div>
 
       <div class="explanation" id="explanation"></div>
-      <button class="next-btn hidden" id="next-btn">CONTINUE <span>→</span></button>
     </section>
+
+    <div class="next-dock hidden" id="next-dock">
+      <button class="next-btn" id="next-btn">ДАЛЕЕ <span>→</span></button>
+    </div>
 
     <section id="result-screen" class="screen">
       <div class="result-card">
-        <div class="result-icon">✓</div>
-        <div class="eyebrow">QUEST COMPLETE</div>
-        <h1 id="result-title">Good work.</h1>
-        <p id="result-copy">Your daily intelligence check is complete.</p>
+        <div class="result-avatar" id="result-avatar" data-emotion="happy">
+          <div class="avatar-frame"><div class="avatar-led"></div><div class="avatar-eye left"></div><div class="avatar-eye right"></div></div>
+        </div>
+        <div class="avatar-quote" id="result-quote"></div>
+        <div class="eyebrow">КВЕСТ ПРОЙДЕН</div>
+        <h1 id="result-title">Хорошая работа.</h1>
+        <p id="result-copy">Ежедневная проверка завершена.</p>
 
         <div class="result-stats">
-          <div><strong id="result-score">0/5</strong><span>SCORE</span></div>
-          <div><strong id="result-xp">+0</strong><span>XP</span></div>
-          <div><strong id="result-streak">0</strong><span>STREAK</span></div>
+          <div><strong id="result-score">0/5</strong><span>СЧЁТ</span></div>
+          <div><strong id="result-xp">+0</strong><span>ОПЫТ</span></div>
+          <div><strong id="result-streak">0</strong><span>СЕРИЯ</span></div>
         </div>
 
-        <div class="explanation show hidden" id="reward-box">
-          <span class="label">TODAY'S REWARD</span><br>
-          <span id="reward-title"></span>
+        <div class="reward-card hidden" id="reward-box" data-tier="">
+          <div class="reward-head">
+            <span class="label">НАГРАДА ДНЯ</span>
+            <span class="tier-badge" id="reward-tier"></span>
+          </div>
+          <div class="reward-title" id="reward-title"></div>
+          <div class="reward-note" id="reward-note"></div>
+          <div class="reward-ladder" id="reward-ladder" aria-hidden="true"></div>
+          <div class="reward-next" id="reward-next"></div>
         </div>
 
-        <button class="primary-btn hidden" id="claim-btn">CLAIM REWARD <span>→</span></button>
+        <div class="reward-card empty hidden" id="no-reward">
+          <div class="reward-title">Сегодня без награды</div>
+          <div class="reward-note" id="no-reward-note">Награда начинается с 1 правильного ответа. Завтра новый квест.</div>
+        </div>
 
-        <button class="primary-btn" id="home-btn">BACK TO QUEST <span>→</span></button>
+        <div class="btn-stack">
+          <button class="primary-btn hidden" id="claim-btn">ЗАБРАТЬ НАГРАДУ <span>→</span></button>
+          <button class="secondary-btn" id="home-btn">НА ГЛАВНУЮ <span>→</span></button>
+        </div>
+      </div>
+    </section>
+
+    <section id="profile-screen" class="screen">
+      <div class="profile-head">
+        <div class="result-avatar small" data-emotion="neutral">
+          <div class="avatar-frame"><div class="avatar-led"></div><div class="avatar-eye left"></div><div class="avatar-eye right"></div></div>
+        </div>
+        <div>
+          <div class="eyebrow">ПРОФИЛЬ</div>
+          <h1 class="profile-name" id="profile-name">трейдер</h1>
+          <div class="rank-pill" id="p-rank-pill">
+            <span id="p-rank-icon">🌱</span>
+            <span id="p-rank-name">Новичок</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="rank-track">
+        <div class="rank-track-fill" id="p-rank-fill"></div>
+      </div>
+      <div class="rank-next" id="p-rank-next">До ранга «Трейдер»: 150 XP</div>
+
+      <div class="profile-stats">
+        <div><strong id="p-xp">0</strong><span>ОПЫТ, XP</span></div>
+        <div><strong id="p-streak">0</strong><span>СЕРИЯ СЕЙЧАС</span></div>
+        <div><strong id="p-best">0</strong><span>ЛУЧШАЯ СЕРИЯ</span></div>
+        <div><strong id="p-quests">0</strong><span>КВЕСТОВ ПРОЙДЕНО</span></div>
+      </div>
+
+      <div class="history">
+        <div class="history-head">
+          <span class="label">ИСТОРИЯ НАГРАД</span>
+          <span class="history-count" id="history-count"></span>
+        </div>
+        <div class="history-list" id="history-list"></div>
+        <div class="history-empty hidden" id="history-empty">
+          Здесь пока пусто. Пройди квест дня, и сюда попадёт первая награда.
+        </div>
+        <p class="history-rule">Незабранная награда сгорает, когда ты получаешь следующую.</p>
       </div>
     </section>
 
     <nav class="bottom-nav">
-      <button class="nav-item active" data-screen="home-screen"><span>◆</span>QUEST</button>
-      <button class="nav-item" id="stats-nav"><span>◈</span>STATS</button>
+      <button class="nav-item active" data-screen="home-screen"><span>◆</span>КВЕСТ</button>
+      <button class="nav-item" data-screen="profile-screen"><span>◈</span>ПРОФИЛЬ</button>
     </nav>
   </main>
+
+  <div class="toast hidden" id="toast" role="status"></div>
 
   <script src="/app.js"></script>
 </body>
