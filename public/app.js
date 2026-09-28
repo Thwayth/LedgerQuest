@@ -388,18 +388,15 @@ async function init() {
   $("avatar").onclick = () => avatar.poke();
 
   document.querySelectorAll(".nav-item").forEach(btn => {
-    btn.onclick = () => {
-      if (btn.id === "stats-nav") {
-        showNotice(
-          `Опыт: ${state.xp} XP\n` +
-          `Серия: ${state.streak} ${plural(state.streak, ["день", "дня", "дней"])} подряд\n` +
-          `Сегодня: ${state.score} из ${state.total}`
-        );
-      } else {
-        showScreen(btn.dataset.screen);
-      }
-    };
+    btn.onclick = () => openScreen(btn.dataset.screen);
   });
+  $("top-pill").onclick = () => openScreen("profile-screen");
+  $("top-pill").onkeydown = e => { if (e.key === "Enter" || e.key === " ") openScreen("profile-screen"); };
+}
+
+function openScreen(id) {
+  if (id === "profile-screen") openProfile();
+  else showScreen(id);
 }
 
 function updateHeader() {
@@ -425,6 +422,9 @@ function showScreen(id) {
   $(id).classList.add("active");
   document.body.classList.toggle("quiz-mode", id === "quiz-screen");
   if (id !== "quiz-screen") $("next-dock").classList.add("hidden");
+  document.querySelectorAll(".nav-item").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.screen === id);
+  });
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -588,6 +588,68 @@ function renderReward() {
   } else {
     next.classList.add("hidden");
   }
+}
+
+// ---------- Profile & reward history ----------
+
+const TIER_GEM = { COMMON: "◇", UNCOMMON: "◆", RARE: "◈", EPIC: "✦", LEGENDARY: "♛" };
+const STATUS_LABEL = { claimed: "ЗАБРАНА", pending: "ЗАБРАТЬ", expired: "СГОРЕЛА" };
+
+function formatDay(day) {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", timeZone: "UTC" })
+    .format(new Date(Date.UTC(y, m - 1, d)));
+}
+
+async function openProfile() {
+  showScreen("profile-screen");
+  $("profile-name").textContent = state.user?.first_name || "трейдер";
+  let profile;
+  try {
+    profile = await api("/api/profile");
+  } catch (err) {
+    showNotice(err.message || "Не удалось загрузить профиль.");
+    return;
+  }
+
+  $("p-xp").textContent = profile.xp;
+  $("p-streak").textContent = profile.streak;
+  $("p-best").textContent = profile.bestStreak;
+  $("p-quests").textContent = profile.questsCompleted;
+
+  const list = $("history-list");
+  list.innerHTML = "";
+  $("history-empty").classList.toggle("hidden", profile.rewards.length > 0);
+  $("history-count").textContent = profile.rewards.length
+    ? `забрано ${profile.rewardsClaimed} из ${profile.rewards.length}`
+    : "";
+
+  profile.rewards.forEach(r => {
+    const item = document.createElement("div");
+    item.className = `h-item ${r.status}`;
+    item.dataset.tier = r.tier || "";
+
+    const gem = document.createElement("div");
+    gem.className = "h-gem";
+    gem.textContent = TIER_GEM[r.tier] || "◇";
+
+    const body = document.createElement("div");
+    const title = document.createElement("div");
+    title.className = "h-title";
+    title.textContent = r.title;
+    const meta = document.createElement("div");
+    meta.className = "h-meta";
+    meta.textContent = `${formatDay(r.day)} · ${r.score} из ${r.total} · ${(TIER_LABEL[r.tier] || "").toLowerCase()}`;
+    body.append(title, meta);
+
+    const status = document.createElement(r.status === "pending" ? "button" : "span");
+    status.className = `h-status ${r.status}`;
+    status.textContent = STATUS_LABEL[r.status] || r.status;
+    if (r.status === "pending") status.onclick = claimReward;
+
+    item.append(gem, body, status);
+    list.appendChild(item);
+  });
 }
 
 function claimReward() {
