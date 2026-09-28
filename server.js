@@ -50,6 +50,8 @@ if (!WEB_APP_URL) {
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
+// Missing assets get a plain 404 instead of falling through to index.html.
+app.use("/assets", (req, res) => res.status(404).end());
 
 const bot = new Telegraf(BOT_TOKEN);
 const store = createStore();
@@ -81,8 +83,8 @@ function previousDay(dayKey) {
   return new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10);
 }
 
-function todaysQuestions(day) {
-  return questionsForDay(day, QUESTIONS_PER_DAY);
+function todaysQuestions(day, userId) {
+  return questionsForDay(day, QUESTIONS_PER_DAY, userId);
 }
 
 // ---------- Per-user lock ----------
@@ -236,6 +238,9 @@ const asyncRoute = fn => (req, res, next) => Promise.resolve(fn(req, res, next))
 
 // ---------- API ----------
 
+// Lightweight endpoint for uptime pings and Render health checks.
+app.get("/healthz", (req, res) => res.json({ ok: true }));
+
 function publicQuestions(questions) {
   return questions.map(q => ({
     id: q.id,
@@ -261,7 +266,7 @@ app.get("/api/daily", requireCaller, asyncRoute(async (req, res) => {
     return user;
   });
 
-  const questions = todaysQuestions(result.day);
+  const questions = todaysQuestions(result.day, req.caller.id);
   const answered = Object.keys(result.answers);
   const rewardToday = result.rewardDay === result.day;
 
@@ -284,7 +289,7 @@ app.post("/api/answer", requireCaller, asyncRoute(async (req, res) => {
 
   const outcome = await withUserLock(req.caller.id, async () => {
     const { user } = await loadUser(req.caller.id);
-    const questions = todaysQuestions(user.day);
+    const questions = todaysQuestions(user.day, req.caller.id);
 
     const question = questions.find(q => q.id === questionId);
     if (!question) return { status: 400, body: { error: "Question not found" } };
@@ -484,7 +489,7 @@ bot.command("stats", async ctx => {
     if (changed) await store.saveUser(user);
     return user;
   });
-  const total = todaysQuestions(user.day).length;
+  const total = todaysQuestions(user.day, id).length;
   await ctx.reply(
     `🏆 LEDGER QUEST STATS\n\n` +
     `XP: ${user.xp}\n` +

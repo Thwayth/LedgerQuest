@@ -1,6 +1,5 @@
 // Question pool. Every day QUESTIONS_PER_DAY questions are picked from it
-// deterministically by date, so everyone gets the same set for a day,
-// and the set changes day to day.
+// for each user separately (random per user, stable within the day).
 //
 // To add a question: append an object with a unique id.
 // `correct` is the index (0-based) of the right option.
@@ -267,8 +266,11 @@ function seededRandom(seedStr) {
   };
 }
 
-export function questionsForDay(day, count) {
-  const rand = seededRandom(`ledger-quest:${day}`);
+// Each user gets their own random set for the day (seeded by day + user id),
+// so questions differ between players but stay stable if the same user
+// reopens the app on the same day.
+export function questionsForDay(day, count, userKey = "") {
+  const rand = seededRandom(`ledger-quest:${day}:${userKey}`);
   const pool = [...QUESTION_POOL];
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
