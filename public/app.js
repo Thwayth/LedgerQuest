@@ -9,46 +9,72 @@ if (tg) {
   } catch {}
 }
 
+// In a normal browser (outside Telegram) each browser gets its own demo id,
+// so demo users don't share one progress.
+function getDemoId() {
+  const key = "lq-demo-id";
+  try {
+    let id = localStorage.getItem(key);
+    if (!id) {
+      id = crypto.randomUUID();
+      localStorage.setItem(key, id);
+    }
+    return id;
+  } catch {
+    return crypto.randomUUID();
+  }
+}
+
+const authHeaders = tg?.initData
+  ? { "X-Telegram-Init-Data": tg.initData }
+  : { "X-Demo-Id": getDemoId() };
+
+const XP_PER_CORRECT = 10;
+
 const state = {
   user: null,
   botUsername: null,
   questions: [],
+  total: 5,
   current: 0,
   score: 0,
   xp: 0,
   streak: 0,
   answered: {},
-  reward: null
+  reward: null,
+  rewardClaimed: false
 };
 
 const $ = id => document.getElementById(id);
 
 async function api(url, options = {}) {
   const response = await fetch(url, {
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options
+    ...options,
+    headers: { "Content-Type": "application/json", ...authHeaders, ...(options.headers || {}) }
   });
-  const data = await response.json();
+  let data = {};
+  try {
+    data = await response.json();
+  } catch {}
   if (!response.ok) throw new Error(data.error || "Request failed");
   return data;
 }
 
 async function init() {
-  const session = await api("/api/session", {
-    method: "POST",
-    body: JSON.stringify({ initData: tg?.initData || "" })
-  });
+  const session = await api("/api/session", { method: "POST" });
 
   state.user = session.user;
   state.botUsername = session.botUsername || null;
   $("user-name").textContent = state.user.first_name || "Quest";
 
-  const daily = await api(`/api/daily?userId=${encodeURIComponent(state.user.id)}`);
+  const daily = await api("/api/daily");
   state.questions = daily.questions;
+  state.total = daily.total || daily.questions.length;
   state.score = daily.score;
   state.xp = daily.xp;
   state.streak = daily.streak;
   state.reward = daily.reward || null;
+  state.rewardClaimed = Boolean(daily.rewardClaimed);
 
   // Rebuild which questions are already answered today,
   // so reopening the app doesn't restart from question 1.
@@ -69,7 +95,7 @@ async function init() {
   document.querySelectorAll(".nav-item").forEach(btn => {
     btn.onclick = () => {
       if (btn.id === "stats-nav") {
-        tg?.showAlert?.(`XP: ${state.xp}\nStreak: ${state.streak} days\nToday's score: ${state.score}/5`);
+        tg?.showAlert?.(`XP: ${state.xp}\nStreak: ${state.streak} days\nToday's score: ${state.score}/${state.total}`);
       } else {
         showScreen(btn.dataset.screen);
       }
@@ -82,9 +108,15 @@ function updateHeader() {
   $("top-streak").textContent = `${state.streak} 🔥`;
 }
 
+function answeredCount() {
+  return Object.keys(state.answered).length;
+}
+
 function updateHome() {
-  $("home-score").textContent = `${state.score} / 5 completed`;
-  $("home-progress").style.width = `${(state.score / 5) * 100}%`;
+  const done = answeredCount();
+  $("home-count").textContent = String(state.total).padStart(2, "0");
+  $("home-score").textContent = `${done} / ${state.total} completed`;
+  $("home-progress").style.width = `${(done / state.total) * 100}%`;
 }
 
 function showScreen(id) {
@@ -113,13 +145,14 @@ function renderQuestion() {
   const q = state.questions[state.current];
   if (!q) return showResult();
 
-  $("quiz-counter").textContent = `${String(state.current + 1).padStart(2,"0")} / 05`;
-  $("quiz-progress").style.width = `${(state.current / 5) * 100}%`;
+  const pad = n => String(n).padStart(2, "0");
+  $("quiz-counter").textContent = `${pad(state.current + 1)} / ${pad(state.total)}`;
+  $("quiz-progress").style.width = `${(state.current / state.total) * 100}%`;
   $("question-category").textContent = q.category.toUpperCase();
   $("question-text").textContent = q.text;
   $("bot-message").textContent =
     state.current === 0 ? "Let's see what you know." :
-    state.current === 4 ? "One last move. Think carefully." :
+    state.current === state.total - 1 ? "One last move. Think carefully." :
     "Stay sharp. The details matter.";
 
   const options = $("options");
@@ -144,14 +177,20 @@ async function answerQuestion(optionIndex) {
   state.answered[q.id] = true;
   document.querySelectorAll(".option").forEach(btn => btn.classList.add("disabled"));
 
-  const result = await api("/api/answer", {
-    method: "POST",
-    body: JSON.stringify({
-      userId: state.user.id,
-      questionId: q.id,
-      optionIndex
-    })
-  });
+  let result;
+  try {
+    result = await api("/api/answer", {
+      method: "POST",
+      body: JSON.stringify({ questionId: q.id, optionIndex })
+    });
+  } catch (err) {
+    // Don't leave the question stuck: unlock it so the user can try again.
+    delete state.answered[q.id];
+    document.querySelectorAll(".option").forEach(btn => btn.classList.remove("disabled"));
+    $("bot-message").textContent = "Connection problem. Tap your answer again.";
+    tg?.showAlert?.(err.message || "Something went wrong. Please try again.");
+    return;
+  }
 
   const buttons = [...document.querySelectorAll(".option")];
   buttons[result.correctIndex].classList.add("correct");
@@ -160,7 +199,10 @@ async function answerQuestion(optionIndex) {
   state.score = result.score;
   state.xp = result.xp;
   state.streak = result.streak;
-  if (result.reward) state.reward = result.reward;
+  if (result.reward) {
+    state.reward = result.reward;
+    state.rewardClaimed = Boolean(result.rewardClaimed);
+  }
 
   $("bot-message").textContent = result.correct
     ? "Correct. Keep going."
@@ -169,7 +211,7 @@ async function answerQuestion(optionIndex) {
   $("explanation").textContent = result.explanation;
   $("explanation").classList.add("show");
   $("next-btn").classList.remove("hidden");
-  $("next-btn").textContent = state.current === 4 ? "FINISH QUEST  →" : "CONTINUE  →";
+  $("next-btn").textContent = state.current === state.total - 1 ? "FINISH QUEST  →" : "CONTINUE  →";
   updateHeader();
 }
 
@@ -180,12 +222,12 @@ function nextQuestion() {
 }
 
 function showResult() {
-  $("result-score").textContent = `${state.score}/5`;
-  $("result-xp").textContent = `+${state.score * 10}`;
+  $("result-score").textContent = `${state.score}/${state.total}`;
+  $("result-xp").textContent = `+${state.score * XP_PER_CORRECT}`;
   $("result-streak").textContent = state.streak;
   $("result-title").textContent =
-    state.score === 5 ? "Perfect run." :
-    state.score >= 3 ? "Solid work." :
+    state.score === state.total ? "Perfect run." :
+    state.score >= Math.ceil(state.total * 0.6) ? "Solid work." :
     "Keep building.";
 
   $("result-copy").textContent =
@@ -194,7 +236,8 @@ function showResult() {
   if (state.reward) {
     $("reward-box").classList.remove("hidden");
     $("reward-title").textContent = state.reward;
-    $("claim-btn").classList.remove("hidden");
+    // Already claimed: keep showing the reward, but hide the claim button.
+    $("claim-btn").classList.toggle("hidden", state.rewardClaimed);
   } else {
     $("reward-box").classList.add("hidden");
     $("claim-btn").classList.add("hidden");

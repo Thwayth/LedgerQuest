@@ -6,6 +6,9 @@ import { Telegraf, Markup } from "telegraf";
 import path from "path";
 import { fileURLToPath } from "url";
 
+import { createStore } from "./store.js";
+import { questionsForDay } from "./questions.js";
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -21,6 +24,20 @@ const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID || null;
 // a "claim reward" link so the user can open a chat with you directly.
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || null;
 
+// Browser demo mode (open the app outside Telegram). Demo users get their own
+// "demo-..." ids, so they can never touch a real Telegram user's progress.
+// Set ALLOW_DEMO=false in production to allow only real Telegram users.
+const ALLOW_DEMO = (process.env.ALLOW_DEMO ?? "true").toLowerCase() !== "false";
+
+// How long a Telegram initData signature stays valid (seconds).
+const INIT_DATA_MAX_AGE = Number(process.env.INIT_DATA_MAX_AGE_SECONDS || 86400);
+
+// Time zone that decides when "today" starts (IANA name, e.g. Europe/Kyiv).
+const QUEST_TZ = process.env.QUEST_TZ || "UTC";
+
+const QUESTIONS_PER_DAY = Number(process.env.QUESTIONS_PER_DAY || 5);
+const XP_PER_CORRECT = 10;
+
 if (!BOT_TOKEN) {
   console.error("BOT_TOKEN is missing.");
   process.exit(1);
@@ -35,76 +52,10 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 const bot = new Telegraf(BOT_TOKEN);
+const store = createStore();
 
 // Filled in once at startup via bot.telegram.getMe().
 let BOT_USERNAME = null;
-
-// Demo storage for MVP.
-// Later we can replace this with Supabase/PostgreSQL so progress survives redeploys.
-const users = new Map();
-
-const QUESTIONS = [
-  {
-    id: "q1",
-    category: "Markets",
-    text: "Если рыночная доходность облигаций растёт, что обычно происходит с ценой уже выпущенной облигации?",
-    options: ["Растёт", "Падает", "Не меняется", "Всегда удваивается"],
-    correct: 1,
-    explanation: "Цена существующей облигации обычно движется в обратную сторону относительно рыночной доходности."
-  },
-  {
-    id: "q2",
-    category: "Crypto",
-    text: "Что означает высокая ликвидность торговой пары?",
-    options: [
-      "Всегда высокий рост цены",
-      "Мало заявок в стакане",
-      "Большой объём заявок и обычно меньшее проскальзывание",
-      "Гарантированную прибыль"
-    ],
-    correct: 2,
-    explanation: "Глубокий рынок обычно позволяет исполнять ордера с меньшим ценовым воздействием."
-  },
-  {
-    id: "q3",
-    category: "Risk",
-    text: "Что произойдёт с риском позиции, если увеличить размер позиции при неизменном стоп-лоссе?",
-    options: [
-      "Риск обычно увеличится",
-      "Риск исчезнет",
-      "Риск всегда останется тем же",
-      "Стоп автоматически станет шире"
-    ],
-    correct: 0,
-    explanation: "При большем размере позиции потенциальный денежный убыток до стопа обычно становится больше."
-  },
-  {
-    id: "q4",
-    category: "Trading",
-    text: "Что такое проскальзывание (slippage)?",
-    options: [
-      "Разница между ожидаемой и фактической ценой исполнения",
-      "Комиссия биржи",
-      "Размер депозита",
-      "Время работы биржи"
-    ],
-    correct: 0,
-    explanation: "Slippage — это отклонение фактической цены исполнения от ожидаемой."
-  },
-  {
-    id: "q5",
-    category: "Bitcoin",
-    text: "Что означает термин market order?",
-    options: [
-      "Ордер исполняется по доступным рыночным ценам",
-      "Ордер исполняется только по заданной цене",
-      "Ордер действует ровно сутки",
-      "Ордер отменяет все позиции"
-    ],
-    correct: 0,
-    explanation: "Market order стремится исполниться сразу по доступным ценам рынка."
-  }
-];
 
 // Daily completion rewards. One is picked at random each time
 // a user finishes today's quest for the first time.
@@ -118,25 +69,65 @@ function pickRandomReward() {
   return REWARDS[Math.floor(Math.random() * REWARDS.length)];
 }
 
+// ---------- Dates ----------
+
 function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  // en-CA formats as YYYY-MM-DD.
+  return new Intl.DateTimeFormat("en-CA", { timeZone: QUEST_TZ }).format(new Date());
 }
 
-function getUser(id) {
-  if (!users.has(id)) {
-    users.set(id, {
-      id,
-      xp: 0,
-      streak: 0,
-      lastCompletedDate: null,
-      day: null,
-      answers: {},
-      score: 0,
-      reward: null
-    });
-  }
-  return users.get(id);
+function previousDay(dayKey) {
+  const [y, m, d] = dayKey.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10);
 }
+
+function todaysQuestions(day) {
+  return questionsForDay(day, QUESTIONS_PER_DAY);
+}
+
+// ---------- Per-user lock ----------
+// Serializes read-modify-write per user, so two fast requests
+// (e.g. double tap) can't overwrite each other's progress.
+const locks = new Map();
+
+function withUserLock(id, fn) {
+  const prev = locks.get(id) || Promise.resolve();
+  const next = prev.then(fn, fn);
+  const tail = next.catch(() => {});
+  locks.set(id, tail);
+  tail.then(() => {
+    if (locks.get(id) === tail) locks.delete(id);
+  });
+  return next;
+}
+
+// Loads a user and brings them up to date for today:
+// resets the daily quest on a new day and breaks the streak if a day was missed.
+async function loadUser(id) {
+  const user = await store.getUser(id);
+  const day = todayKey();
+  let changed = false;
+
+  if (user.day !== day) {
+    user.day = day;
+    user.answers = {};
+    user.score = 0;
+    changed = true;
+  }
+
+  if (
+    user.streak > 0 &&
+    user.lastCompletedDate !== day &&
+    user.lastCompletedDate !== previousDay(day)
+  ) {
+    user.streak = 0;
+    changed = true;
+  }
+
+  return { user, changed };
+}
+
+// ---------- Messages ----------
 
 // Message the bot sends to the admin automatically — keeps identifying
 // info since this is the admin's only reliable way to know who to reward.
@@ -156,6 +147,14 @@ function buildClaimMessage(reward) {
   return `Хочу забрать награду в Ledger Quest 🎁\nВыиграл: ${reward}`;
 }
 
+function adminLinkKeyboard(reward) {
+  if (!ADMIN_USERNAME) return undefined;
+  const url = `https://t.me/${ADMIN_USERNAME}?text=${encodeURIComponent(buildClaimMessage(reward))}`;
+  return Markup.inlineKeyboard([Markup.button.url("Написать админу", url)]);
+}
+
+// ---------- Auth ----------
+
 // Telegram Web App initData validation.
 // Never trust initDataUnsafe on the server.
 function validateInitData(initData) {
@@ -163,7 +162,7 @@ function validateInitData(initData) {
 
   const params = new URLSearchParams(initData);
   const hash = params.get("hash");
-  if (!hash) return null;
+  if (!hash || !/^[0-9a-f]{64}$/i.test(hash)) return null;
 
   params.delete("hash");
 
@@ -183,7 +182,6 @@ function validateInitData(initData) {
     .digest("hex");
 
   if (
-    calculatedHash.length !== hash.length ||
     !crypto.timingSafeEqual(
       Buffer.from(calculatedHash, "hex"),
       Buffer.from(hash, "hex")
@@ -191,6 +189,10 @@ function validateInitData(initData) {
   ) {
     return null;
   }
+
+  // Reject stale signatures so an old initData can't be reused forever.
+  const authDate = Number(params.get("auth_date"));
+  if (!authDate || Date.now() / 1000 - authDate > INIT_DATA_MAX_AGE) return null;
 
   const userRaw = params.get("user");
   if (!userRaw) return null;
@@ -202,8 +204,40 @@ function validateInitData(initData) {
   }
 }
 
-function publicQuestions() {
-  return QUESTIONS.map(q => ({
+// Works out who is calling the API. The user id always comes from a
+// verified source — never from the request body or query string.
+function resolveCaller(req) {
+  const initData = req.get("X-Telegram-Init-Data");
+  if (initData) {
+    const tgUser = validateInitData(initData);
+    if (!tgUser) return { error: "Invalid or expired Telegram session. Reopen the app." };
+    return { id: String(tgUser.id), tgUser, demo: false };
+  }
+
+  if (ALLOW_DEMO) {
+    const demoId = req.get("X-Demo-Id") || "";
+    if (/^[a-z0-9-]{8,64}$/i.test(demoId)) {
+      return { id: `demo-${demoId}`, demo: true };
+    }
+  }
+
+  return { error: "Open Ledger Quest from Telegram." };
+}
+
+function requireCaller(req, res, next) {
+  const caller = resolveCaller(req);
+  if (caller.error) return res.status(401).json({ error: caller.error });
+  req.caller = caller;
+  next();
+}
+
+// Wraps async handlers so errors become a 500 instead of a hung request.
+const asyncRoute = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
+// ---------- API ----------
+
+function publicQuestions(questions) {
+  return questions.map(q => ({
     id: q.id,
     category: q.category,
     text: q.text,
@@ -211,92 +245,104 @@ function publicQuestions() {
   }));
 }
 
-app.post("/api/session", (req, res) => {
-  const tgUser = validateInitData(req.body?.initData);
+app.post("/api/session", requireCaller, (req, res) => {
+  const { demo, tgUser } = req.caller;
+  res.json({
+    demo,
+    botUsername: BOT_USERNAME,
+    user: demo ? { first_name: "Quest", username: "demo" } : tgUser
+  });
+});
 
-  // Browser demo mode: lets us design/test outside Telegram.
-  // Production can be changed to reject this mode.
-  if (!tgUser) {
-    return res.json({
-      demo: true,
-      botUsername: BOT_USERNAME,
-      user: {
-        id: "browser-demo",
-        first_name: "Quest",
-        username: "demo"
+app.get("/api/daily", requireCaller, asyncRoute(async (req, res) => {
+  const result = await withUserLock(req.caller.id, async () => {
+    const { user, changed } = await loadUser(req.caller.id);
+    if (changed) await store.saveUser(user);
+    return user;
+  });
+
+  const questions = todaysQuestions(result.day);
+  const answered = Object.keys(result.answers);
+  const rewardToday = result.rewardDay === result.day;
+
+  res.json({
+    day: result.day,
+    questions: publicQuestions(questions),
+    total: questions.length,
+    score: result.score,
+    xp: result.xp,
+    streak: result.streak,
+    answered,
+    reward: rewardToday ? result.reward : null,
+    rewardClaimed: rewardToday ? result.rewardClaimed : false,
+    completed: answered.length >= questions.length
+  });
+}));
+
+app.post("/api/answer", requireCaller, asyncRoute(async (req, res) => {
+  const { questionId, optionIndex } = req.body || {};
+
+  const outcome = await withUserLock(req.caller.id, async () => {
+    const { user } = await loadUser(req.caller.id);
+    const questions = todaysQuestions(user.day);
+
+    const question = questions.find(q => q.id === questionId);
+    if (!question) return { status: 400, body: { error: "Question not found" } };
+
+    const index = Number(optionIndex);
+    if (!Number.isInteger(index) || index < 0 || index >= question.options.length) {
+      return { status: 400, body: { error: "Invalid option" } };
+    }
+
+    if (user.answers[questionId] !== undefined) {
+      return { status: 400, body: { error: "Already answered" } };
+    }
+
+    const correct = index === question.correct;
+    user.answers[questionId] = index;
+    if (correct) {
+      user.score += 1;
+      user.xp += XP_PER_CORRECT;
+    }
+
+    const finished = Object.keys(user.answers).length >= questions.length;
+    if (finished && user.lastCompletedDate !== user.day) {
+      user.streak = user.lastCompletedDate === previousDay(user.day) ? user.streak + 1 : 1;
+      user.lastCompletedDate = user.day;
+      user.reward = pickRandomReward();
+      user.rewardDay = user.day;
+      user.rewardClaimed = false;
+    }
+
+    await store.saveUser(user);
+
+    const rewardToday = user.rewardDay === user.day;
+    return {
+      status: 200,
+      body: {
+        correct,
+        correctIndex: question.correct,
+        explanation: question.explanation,
+        score: user.score,
+        xp: user.xp,
+        streak: user.streak,
+        answeredCount: Object.keys(user.answers).length,
+        finished,
+        reward: rewardToday ? user.reward : null,
+        rewardClaimed: rewardToday ? user.rewardClaimed : false
       }
-    });
-  }
-
-  getUser(String(tgUser.id));
-  res.json({ demo: false, botUsername: BOT_USERNAME, user: tgUser });
-});
-
-app.get("/api/daily", (req, res) => {
-  const userId = String(req.query.userId || "browser-demo");
-  const user = getUser(userId);
-  const day = todayKey();
-
-  if (user.day !== day) {
-    user.day = day;
-    user.answers = {};
-    user.score = 0;
-    user.reward = null;
-  }
-
-  res.json({
-    day,
-    questions: publicQuestions(),
-    score: user.score,
-    xp: user.xp,
-    streak: user.streak,
-    answered: Object.keys(user.answers),
-    reward: user.reward,
-    completed: Object.keys(user.answers).length === QUESTIONS.length
+    };
   });
+
+  res.status(outcome.status).json(outcome.body);
+}));
+
+app.use("/api", (err, req, res, next) => {
+  console.error("API error:", err);
+  res.status(500).json({ error: "Server error. Please try again." });
 });
 
-app.post("/api/answer", (req, res) => {
-  const { userId = "browser-demo", questionId, optionIndex } = req.body || {};
-  const user = getUser(String(userId));
-
-  const question = QUESTIONS.find(q => q.id === questionId);
-  if (!question) return res.status(400).json({ error: "Question not found" });
-
-  const index = Number(optionIndex);
-  if (!Number.isInteger(index) || index < 0 || index >= question.options.length) {
-    return res.status(400).json({ error: "Invalid option" });
-  }
-
-  if (user.answers[questionId] !== undefined) {
-    return res.status(400).json({ error: "Already answered" });
-  }
-
-  const correct = index === question.correct;
-  user.answers[questionId] = index;
-  if (correct) {
-    user.score += 1;
-    user.xp += 10;
-  }
-
-  const finished = Object.keys(user.answers).length === QUESTIONS.length;
-  if (finished && user.lastCompletedDate !== user.day) {
-    user.streak += 1;
-    user.lastCompletedDate = user.day;
-    user.reward = pickRandomReward();
-  }
-
-  res.json({
-    correct,
-    correctIndex: question.correct,
-    explanation: question.explanation,
-    score: user.score,
-    xp: user.xp,
-    streak: user.streak,
-    finished,
-    reward: user.reward
-  });
-});
+// ---------- Bot ----------
 
 // Set the Telegram bot menu button to open the Mini App.
 async function configureBot() {
@@ -326,17 +372,25 @@ bot.start(async ctx => {
   // Reached when the user taps "Claim reward" in the Mini App,
   // which opens https://t.me/<bot>?start=claim
   if (payload === "claim") {
-    const user = getUser(String(ctx.from.id));
+    const user = await store.getUser(String(ctx.from.id));
 
     if (!user.reward) {
       await ctx.reply(
-        "Похоже, у тебя ещё нет полученной награды сегодня. Сначала пройди дневной квест до конца."
+        "Похоже, у тебя пока нет награды. Сначала пройди дневной квест до конца."
+      );
+      return;
+    }
+
+    if (user.rewardClaimed) {
+      await ctx.reply(
+        `Эта награда уже забрана: ${user.reward}\nНовая появится после следующего пройденного квеста.`,
+        adminLinkKeyboard(user.reward)
       );
       return;
     }
 
     await ctx.reply(
-      "Готов ли ты забрать выигрыш?",
+      `Твоя награда: ${user.reward}\n\nГотов ли ты забрать выигрыш?`,
       Markup.inlineKeyboard([
         [Markup.button.callback("Да", "claim_yes")],
         [Markup.button.callback("Позже", "claim_later")]
@@ -358,12 +412,27 @@ bot.start(async ctx => {
 
 bot.action("claim_yes", async ctx => {
   await ctx.answerCbQuery();
+  const id = String(ctx.from.id);
 
-  const user = getUser(String(ctx.from.id));
+  // Mark as claimed under the lock, so double taps can't claim twice.
+  const claim = await withUserLock(id, async () => {
+    const user = await store.getUser(id);
+    if (!user.reward) return { status: "none" };
+    if (user.rewardClaimed) return { status: "already", reward: user.reward };
+    user.rewardClaimed = true;
+    await store.saveUser(user);
+    return { status: "ok", reward: user.reward };
+  });
 
-  if (!user.reward) {
+  if (claim.status === "none") {
+    await ctx.editMessageText("Похоже, награда не найдена. Пройди дневной квест до конца.");
+    return;
+  }
+
+  if (claim.status === "already") {
     await ctx.editMessageText(
-      "Похоже, награда уже не найдена. Попробуй пройти квест заново."
+      `Эта награда уже забрана: ${claim.reward}`,
+      adminLinkKeyboard(claim.reward)
     );
     return;
   }
@@ -371,7 +440,7 @@ bot.action("claim_yes", async ctx => {
   // Reliable automatic notification to the admin — keeps who/what info.
   if (ADMIN_CHAT_ID) {
     try {
-      await bot.telegram.sendMessage(ADMIN_CHAT_ID, buildAdminMessage(ctx, user.reward));
+      await bot.telegram.sendMessage(ADMIN_CHAT_ID, buildAdminMessage(ctx, claim.reward));
     } catch (error) {
       console.error("Could not notify admin:", error.message);
     }
@@ -381,10 +450,9 @@ bot.action("claim_yes", async ctx => {
 
   // Also offer the user a direct link to message the admin personally.
   if (ADMIN_USERNAME) {
-    const url = `https://t.me/${ADMIN_USERNAME}?text=${encodeURIComponent(buildClaimMessage(user.reward))}`;
     await ctx.editMessageText(
       "🎁 Отлично! Нажми кнопку ниже, чтобы забрать награду.",
-      Markup.inlineKeyboard([Markup.button.url("Забрать награду", url)])
+      adminLinkKeyboard(claim.reward)
     );
   } else {
     await ctx.editMessageText(
@@ -410,11 +478,17 @@ bot.command("quest", async ctx => {
 });
 
 bot.command("stats", async ctx => {
-  const user = getUser(String(ctx.from.id));
+  const id = String(ctx.from.id);
+  const user = await withUserLock(id, async () => {
+    const { user, changed } = await loadUser(id);
+    if (changed) await store.saveUser(user);
+    return user;
+  });
+  const total = todaysQuestions(user.day).length;
   await ctx.reply(
     `🏆 LEDGER QUEST STATS\n\n` +
     `XP: ${user.xp}\n` +
-    `Today's score: ${user.score}/5\n` +
+    `Today's score: ${user.score}/${total}\n` +
     `Streak: ${user.streak} 🔥`
   );
 });
@@ -425,18 +499,33 @@ app.get("*splat", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-app.listen(PORT, async () => {
-  console.log(`Ledger Quest running on port ${PORT}`);
-  try {
-    await initBotUsername();
-    await configureBot();
-    console.log("Telegram menu button configured.");
-  } catch (error) {
-    console.error("Could not configure Telegram menu button:", error.message);
-  }
-});
+// ---------- Start ----------
 
-bot.launch().then(() => console.log("Telegram bot launched."));
+async function main() {
+  await store.init();
+  console.log(`Storage: ${store.kind}`);
+  if (store.kind === "memory") {
+    console.warn("DATABASE_URL is not set — progress is kept in memory and is lost on restart.");
+  }
+
+  app.listen(PORT, async () => {
+    console.log(`Ledger Quest running on port ${PORT}`);
+    try {
+      await initBotUsername();
+      await configureBot();
+      console.log("Telegram menu button configured.");
+    } catch (error) {
+      console.error("Could not configure Telegram menu button:", error.message);
+    }
+  });
+
+  bot.launch().then(() => console.log("Telegram bot launched."));
+}
+
+main().catch(error => {
+  console.error("Startup failed:", error);
+  process.exit(1);
+});
 
 process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));
