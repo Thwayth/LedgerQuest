@@ -304,6 +304,8 @@ app.post("/api/answer", requireCaller, asyncRoute(async (req, res) => {
     const finished = Object.keys(user.answers).length >= questions.length;
     if (finished && user.lastCompletedDate !== user.day) {
       user.streak = user.lastCompletedDate === previousDay(user.day) ? user.streak + 1 : 1;
+      user.bestStreak = Math.max(user.bestStreak || 0, user.streak);
+      user.questsCompleted = (user.questsCompleted || 0) + 1;
       user.lastCompletedDate = user.day;
 
       // Reward depends on how many answers were correct. With 0 correct
@@ -313,6 +315,13 @@ app.post("/api/answer", requireCaller, asyncRoute(async (req, res) => {
         user.reward = earned.title;
         user.rewardDay = user.day;
         user.rewardClaimed = false;
+        await store.addReward(user.id, {
+          day: user.day,
+          title: earned.title,
+          tier: earned.tier,
+          score: user.score,
+          total: questions.length
+        });
       }
     }
 
@@ -337,6 +346,25 @@ app.post("/api/answer", requireCaller, asyncRoute(async (req, res) => {
   });
 
   res.status(outcome.status).json(outcome.body);
+}));
+
+// Player profile: totals and the history of earned rewards.
+app.get("/api/profile", requireCaller, asyncRoute(async (req, res) => {
+  const user = await withUserLock(req.caller.id, async () => {
+    const { user, changed } = await loadUser(req.caller.id);
+    if (changed) await store.saveUser(user);
+    return user;
+  });
+  const rewards = await store.listRewards(req.caller.id, 50);
+
+  res.json({
+    xp: user.xp,
+    streak: user.streak,
+    bestStreak: user.bestStreak || 0,
+    questsCompleted: user.questsCompleted || 0,
+    rewardsClaimed: rewards.filter(r => r.status === "claimed").length,
+    rewards: rewards.map(r => ({ ...r, note: rewardInfo(r.title)?.note || "" }))
+  });
 }));
 
 app.use("/api", (err, req, res, next) => {
@@ -423,6 +451,7 @@ bot.action("claim_yes", async ctx => {
     if (user.rewardClaimed) return { status: "already", reward: user.reward };
     user.rewardClaimed = true;
     await store.saveUser(user);
+    await store.markRewardClaimed(id, user.rewardDay);
     return { status: "ok", reward: user.reward };
   });
 
