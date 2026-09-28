@@ -2,7 +2,7 @@
 
 Telegram Mini App MVP with:
 - Telegram bot
-- Daily 5-question quest, rotated every day from a question pool
+- Daily 5-question quest, random per player, from a question pool
 - XP and streak
 - Premium fintech UI
 - Ledger Bot character
@@ -82,9 +82,31 @@ Use that only for local testing.
   Set `ALLOW_DEMO=false` in production to disable demo mode completely.
 
 ## Questions
-Questions live in `questions.js`. Every day `QUESTIONS_PER_DAY` questions are picked
-from the pool and their answer options are shuffled, the same for everyone that day.
+Questions live in `questions.js`. Every day each player gets their own random
+`QUESTIONS_PER_DAY` questions from the pool, with shuffled answer options.
+The set stays the same if the player reopens the app on the same day.
 Add more questions to the pool to make the rotation less repetitive.
+
+## Render free plan: cold starts
+On the free plan Render puts the service to sleep after 15 minutes without traffic.
+The next visitor sees Render's "application loading" screen for ~30–60 seconds,
+and the bot doesn't answer while the service sleeps.
+
+Options:
+- upgrade the service to a paid instance (no sleep), or
+- ping `https://<your-service>.onrender.com/healthz` every 10 minutes with a free
+  uptime monitor (cron-job.org, UptimeRobot). One always-on service fits into
+  the free 750 instance hours per month.
+
+## Avatar emotions
+During the quiz the host reacts with emotions: `neutral`, `thinking`, `happy`,
+`excited`, `sad`, `surprised`. By default it uses a close-up of `ledger-bot.png`
+and shows the mood with the headphone LED color, glow and motion.
+
+To give the host real facial expressions, add square portraits (same framing,
+~720×720) to `public/assets/avatar/<emotion>.jpg`, e.g. `happy.jpg`, `sad.jpg`.
+Any file that exists is picked up automatically; missing ones fall back to the default.
+Remarks are in `LINES` in `public/app.js`.
 
 ## Next version
 - admin panel

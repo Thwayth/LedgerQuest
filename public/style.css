@@ -32,7 +32,7 @@ button { font: inherit; }
   padding: 18px 16px 92px;
 }
 
-.topbar, .quiz-top, .quest-head, .quest-meta, .profile-pill, .bot-row {
+.topbar, .quiz-top, .quest-head, .quest-meta, .profile-pill {
   display: flex;
   align-items: center;
 }
@@ -88,20 +88,91 @@ h1 span { color:var(--accent); }
 .progress-fill { height:100%; width:0%; background:linear-gradient(90deg,var(--accent-2),var(--accent)); border-radius:4px; transition:.3s; }
 .quest-meta { justify-content:space-between; color:var(--muted); font-size:9px; margin-bottom:16px; }
 
-.primary-btn, .next-btn {
+.primary-btn, .next-btn, .secondary-btn {
   width:100%; border:0; border-radius:13px; padding:14px 16px; cursor:pointer;
   background:var(--accent); color:#07100d; font-weight:800; font-size:11px; letter-spacing:1.2px;
 }
-.primary-btn span, .next-btn span { float:right; font-size:16px; line-height:10px; }
+.secondary-btn { background:transparent; color:var(--text); border:1px solid var(--line); }
+.primary-btn span, .next-btn span, .secondary-btn span { float:right; font-size:16px; line-height:10px; }
 
-.quiz-top { gap:12px; margin-bottom:20px; }
+.quiz-top { gap:12px; margin-bottom:14px; }
 .back-btn { border:1px solid var(--line); background:var(--panel); color:var(--text); width:36px; height:36px; border-radius:10px; }
 .quiz-progress-wrap { flex:1; }
 .quiz-counter { font-size:10px; font-weight:800; color:var(--muted); margin-bottom:7px; }
 
-.bot-row { gap:10px; margin-bottom:14px; }
-.bot-mini { width:46px; height:46px; object-fit:cover; border-radius:13px; border:1px solid var(--line); }
-.bot-message { flex:1; background:var(--panel); border:1px solid var(--line); border-radius:12px 12px 12px 3px; padding:10px 12px; font-size:11px; color:#c5cecf; }
+/* ---------- Avatar ---------- */
+/* Emotion colors drive the ear LED, glow and mood dot. */
+[data-emotion="neutral"]  { --mood:#74e6c3; }
+[data-emotion="thinking"] { --mood:#e8c778; }
+[data-emotion="happy"]    { --mood:#5dffb0; }
+[data-emotion="excited"]  { --mood:#ffd166; }
+[data-emotion="sad"]      { --mood:#ff7373; }
+[data-emotion="surprised"]{ --mood:#8ab8ff; }
+
+.avatar-stage {
+  position:relative; height:clamp(230px, 38vh, 330px); margin-bottom:12px;
+  border:1px solid var(--line); border-radius:24px; overflow:hidden;
+  background:#070a0c;
+}
+/* The close-up is a crop of ledger-bot.png (face and shoulders). */
+.avatar-frame {
+  position:absolute; left:0; width:100%; aspect-ratio:1; top:50%;
+  transform:translateY(-46%);
+  background:url("/assets/ledger-bot.png") 43.2% 14.4% / 224% no-repeat;
+  animation:breathe 6s ease-in-out infinite;
+  transform-origin:50% 40%;
+  transition:filter .5s ease;
+}
+.avatar-frame.custom { background-size:cover; background-position:center; }
+.avatar-frame.custom .avatar-led { display:none; }
+/* Glowing ring over the headphone LED, recolored per emotion. */
+.avatar-led {
+  position:absolute; left:24.3%; top:39.6%; width:12.5%; aspect-ratio:1;
+  transform:translate(-50%,-50%); border-radius:50%;
+  border:3px solid var(--mood); mix-blend-mode:screen; opacity:.75;
+  box-shadow:0 0 18px var(--mood), inset 0 0 12px var(--mood);
+  animation:led 2.6s ease-in-out infinite; transition:border-color .4s, box-shadow .4s;
+}
+.avatar-glow {
+  position:absolute; inset:0; pointer-events:none; z-index:1;
+  background:radial-gradient(circle at 30% 40%, color-mix(in srgb, var(--mood) 22%, transparent), transparent 55%),
+             linear-gradient(transparent 55%, rgba(7,10,12,.95));
+  transition:background .5s;
+}
+.avatar-bubble {
+  position:absolute; left:12px; right:12px; bottom:12px; z-index:2;
+  background:rgba(12,17,19,.82); backdrop-filter:blur(10px);
+  border:1px solid color-mix(in srgb, var(--mood) 35%, transparent);
+  border-radius:14px 14px 14px 4px; padding:10px 12px;
+  transition:border-color .4s;
+}
+.avatar-mood { display:flex; align-items:center; gap:6px; font-size:8px; letter-spacing:1.6px; font-weight:800; color:var(--mood); margin-bottom:5px; }
+.mood-dot { width:6px; height:6px; border-radius:50%; background:var(--mood); box-shadow:0 0 8px var(--mood); animation:led 1.6s ease-in-out infinite; }
+.avatar-text { font-size:13px; line-height:1.45; color:#e3eaea; min-height:19px; }
+.avatar-text.typing::after { content:"▍"; color:var(--mood); animation:blink .8s steps(1) infinite; margin-left:1px; }
+
+/* Emotion reactions */
+[data-emotion="thinking"] .avatar-frame { animation:sway 4s ease-in-out infinite; }
+[data-emotion="thinking"] .avatar-led   { animation-duration:1s; }
+[data-emotion="happy"] .avatar-frame    { animation:nod .7s ease, breathe 6s ease-in-out .7s infinite; }
+[data-emotion="excited"] .avatar-frame  { animation:hop .6s ease 2, breathe 6s ease-in-out 1.2s infinite; filter:saturate(1.15) brightness(1.08); }
+[data-emotion="excited"] .avatar-led    { animation-duration:.5s; }
+[data-emotion="sad"] .avatar-frame      { animation:shake .45s ease, breathe 7s ease-in-out .45s infinite; filter:saturate(.6) brightness(.85); }
+[data-emotion="sad"] .avatar-led        { animation-duration:3.5s; opacity:.5; }
+[data-emotion="surprised"] .avatar-frame{ animation:pop .4s ease, breathe 6s ease-in-out .4s infinite; }
+
+@keyframes breathe { 0%,100% { transform:translateY(-46%) scale(1); } 50% { transform:translateY(-46.6%) scale(1.018); } }
+@keyframes sway    { 0%,100% { transform:translateY(-46%) rotate(0); } 50% { transform:translateY(-46%) rotate(-1.2deg) scale(1.02); } }
+@keyframes nod     { 0%,100% { transform:translateY(-46%); } 40% { transform:translateY(-44%) scale(1.03); } }
+@keyframes hop     { 0%,100% { transform:translateY(-46%) scale(1); } 50% { transform:translateY(-49%) scale(1.05); } }
+@keyframes shake   { 0%,100% { transform:translateY(-46%); } 25% { transform:translate(-2%,-46%); } 75% { transform:translate(2%,-46%); } }
+@keyframes pop     { 0% { transform:translateY(-46%) scale(1); } 50% { transform:translateY(-46%) scale(1.06); } 100% { transform:translateY(-46%) scale(1); } }
+@keyframes led     { 0%,100% { opacity:.45; } 50% { opacity:.9; } }
+@keyframes blink   { 50% { opacity:0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar-frame, .avatar-led, .mood-dot { animation:none !important; }
+}
 
 .question-card { padding:20px; }
 .category { font-size:8px; color:var(--accent); letter-spacing:2px; font-weight:800; }
@@ -124,15 +195,27 @@ h1 span { color:var(--accent); }
   display:none;
 }
 .explanation.show { display:block; }
-.next-btn { margin-top:10px; }
+/* Continue button is docked to the bottom of the screen, so no scrolling is needed. */
+.next-dock {
+  position:fixed; left:50%; bottom:0; transform:translateX(-50%); z-index:10;
+  width:min(100%,520px); padding:12px 16px calc(14px + env(safe-area-inset-bottom));
+  background:linear-gradient(transparent, rgba(8,11,13,.96) 30%);
+  animation:dock-in .25s ease;
+}
+@keyframes dock-in { from { opacity:0; transform:translate(-50%,12px); } to { opacity:1; transform:translate(-50%,0); } }
+.next-btn { box-shadow:0 8px 30px rgba(116,230,195,.25); }
+body.quiz-mode .bottom-nav { display:none; }
+body.quiz-mode .app-shell { padding-bottom:110px; }
 .hidden { display:none !important; }
 
-.result-card { text-align:center; padding:30px 18px; margin-top:20px; }
-.result-icon {
-  width:58px; height:58px; margin:0 auto 20px; border-radius:50%; display:grid; place-items:center;
-  background:rgba(116,230,195,.1); border:1px solid rgba(116,230,195,.4);
-  color:var(--accent); font-size:26px;
+.result-card { text-align:center; padding:26px 18px; margin-top:8px; }
+.result-avatar {
+  position:relative; width:112px; height:112px; margin:0 auto 14px; border-radius:50%; overflow:hidden;
+  border:2px solid var(--mood); box-shadow:0 0 28px color-mix(in srgb, var(--mood) 40%, transparent);
 }
+.result-avatar .avatar-frame { width:150%; left:-25%; }
+.avatar-quote { font-size:12px; color:#dce4e4; font-style:italic; margin:0 0 16px; min-height:17px; }
+.btn-stack { display:grid; gap:10px; margin-top:16px; }
 .result-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin:24px 0; }
 .result-stats div { border:1px solid var(--line); background:#0b1012; padding:13px 5px; border-radius:13px; }
 .result-stats strong { display:block; color:var(--accent); font-size:18px; }

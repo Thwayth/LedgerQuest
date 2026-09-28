@@ -47,6 +47,171 @@ const state = {
 
 const $ = id => document.getElementById(id);
 
+// ---------- Avatar ----------
+// A "living" host: changes emotion (LED color, glow, motion), types out
+// remarks and comments on its own if the player goes quiet.
+
+const pick = list => list[Math.floor(Math.random() * list.length)];
+
+const LINES = {
+  intro: [
+    "Поехали. Посмотрим, что ты знаешь сегодня.",
+    "Я уже подобрала вопросы. Начинаем?",
+    "Кофе остыл, рынок открыт. Первый вопрос.",
+    "Сегодня без поблажек. Готовься."
+  ],
+  next: [
+    "Следующий. Тут есть подвох, присмотрись.",
+    "Этот вопрос мне нравится.",
+    "Детали решают всё.",
+    "Думай как трейдер, а не как игрок.",
+    "Спокойно. Прочитай все варианты."
+  ],
+  last: [
+    "Последний вопрос. Соберись.",
+    "Финальный ход. Не торопись."
+  ],
+  idle: [
+    "Думаешь? Это хороший знак.",
+    "Первая мысль не всегда верная…",
+    "Я подожду. Рынок тоже умеет ждать.",
+    "Подсказка: ищи вариант без слова «всегда».",
+    "Хм. Интересно, что ты выберешь."
+  ],
+  correct: [
+    "Точно в цель.",
+    "Именно так. Чистая работа.",
+    "Вот это уровень.",
+    "Да! Так и есть."
+  ],
+  streak: [
+    "Уже {n} подряд. Горячая серия 🔥",
+    "{n} из {n}. Мне начинает нравиться.",
+    "{n} верных подряд. Не сбавляй темп."
+  ],
+  wrong: [
+    "Мимо. Но теперь ты это знаешь.",
+    "Рынок учит дорого, а я бесплатно. Прочитай пояснение.",
+    "Бывает. Главное понять, почему.",
+    "Не в этот раз. Запомни это."
+  ],
+  wrongAgain: [
+    "Ничего, следующий возьмём.",
+    "Выдыхай. Сейчас отыграемся."
+  ],
+  error: [
+    "Связь пропала. Нажми ответ ещё раз."
+  ],
+  resultPerfect: ["Идеально. Ни одной ошибки!", "Безупречно. Ты сегодня в форме."],
+  resultGood: ["Сильный результат. Завтра добьём до идеала.", "Хорошо сыграно."],
+  resultLow: ["Сегодня рынок победил. Завтра реванш.", "Каждая ошибка делает тебя сильнее."]
+};
+
+const MOOD_LABEL = {
+  neutral: "ONLINE",
+  thinking: "THINKING",
+  happy: "PLEASED",
+  excited: "IMPRESSED",
+  sad: "HMM…",
+  surprised: "OH!"
+};
+
+// Optional per-emotion portraits: put public/assets/avatar/<emotion>.jpg
+// (neutral, thinking, happy, excited, sad, surprised) and they are used
+// automatically instead of the default close-up.
+const customPortraits = {};
+Object.keys(MOOD_LABEL).forEach(emotion => {
+  const img = new Image();
+  img.onload = () => { customPortraits[emotion] = img.src; };
+  img.src = `/assets/avatar/${emotion}.jpg`;
+});
+
+function applyPortrait(frame, emotion) {
+  if (!frame) return;
+  const src = customPortraits[emotion];
+  frame.classList.toggle("custom", Boolean(src));
+  frame.style.backgroundImage = src ? `url("${src}")` : "";
+}
+
+const avatar = {
+  typingTimer: null,
+  idleTimer: null,
+  correctRun: 0,
+  wrongRun: 0,
+
+  setEmotion(emotion) {
+    const stage = $("avatar");
+    // Re-trigger the one-shot reaction animation even for the same emotion.
+    stage.dataset.emotion = "neutral";
+    void stage.offsetWidth;
+    stage.dataset.emotion = emotion;
+    $("avatar-mood").textContent = MOOD_LABEL[emotion] || "ONLINE";
+    applyPortrait($("avatar-frame"), emotion);
+  },
+
+  say(text, emotion) {
+    if (emotion) this.setEmotion(emotion);
+    const el = $("bot-message");
+    clearInterval(this.typingTimer);
+    el.textContent = "";
+    el.classList.add("typing");
+    const chars = [...text];
+    let i = 0;
+    this.typingTimer = setInterval(() => {
+      el.textContent += chars[i++] || "";
+      if (i >= chars.length) {
+        clearInterval(this.typingTimer);
+        el.classList.remove("typing");
+      }
+    }, 22);
+  },
+
+  // If the player hasn't answered for a while, the host chimes in.
+  armIdle() {
+    this.disarmIdle();
+    this.idleTimer = setTimeout(() => this.say(pick(LINES.idle), "thinking"), 11000);
+  },
+  disarmIdle() {
+    clearTimeout(this.idleTimer);
+  },
+
+  onQuestion(index, total) {
+    const line =
+      index === total - 1 ? pick(LINES.last) :
+      index === 0 || this.correctRun + this.wrongRun === 0 ? pick(LINES.intro) :
+      pick(LINES.next);
+    this.say(line, index === total - 1 ? "surprised" : "neutral");
+    this.armIdle();
+  },
+
+  onAnswer(correct) {
+    this.disarmIdle();
+    if (correct) {
+      this.correctRun += 1;
+      this.wrongRun = 0;
+      if (this.correctRun >= 2) {
+        this.say(pick(LINES.streak).replaceAll("{n}", this.correctRun), "excited");
+      } else {
+        this.say(pick(LINES.correct), "happy");
+      }
+    } else {
+      this.wrongRun += 1;
+      this.correctRun = 0;
+      this.say(pick(this.wrongRun >= 2 ? LINES.wrongAgain : LINES.wrong), "sad");
+    }
+  },
+
+  onError() {
+    this.say(pick(LINES.error), "surprised");
+  },
+
+  resultLine(score, total) {
+    if (score === total) return { text: pick(LINES.resultPerfect), emotion: "excited" };
+    if (score >= Math.ceil(total * 0.6)) return { text: pick(LINES.resultGood), emotion: "happy" };
+    return { text: pick(LINES.resultLow), emotion: "sad" };
+  }
+};
+
 async function api(url, options = {}) {
   const response = await fetch(url, {
     ...options,
@@ -87,7 +252,10 @@ async function init() {
   updateHome();
 
   $("start-btn").onclick = startQuest;
-  $("back-btn").onclick = () => showScreen("home-screen");
+  $("back-btn").onclick = () => {
+    avatar.disarmIdle();
+    showScreen("home-screen");
+  };
   $("next-btn").onclick = nextQuestion;
   $("home-btn").onclick = () => showScreen("home-screen");
   $("claim-btn").onclick = claimReward;
@@ -122,6 +290,8 @@ function updateHome() {
 function showScreen(id) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   $(id).classList.add("active");
+  document.body.classList.toggle("quiz-mode", id === "quiz-screen");
+  if (id !== "quiz-screen") $("next-dock").classList.add("hidden");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -150,16 +320,14 @@ function renderQuestion() {
   $("quiz-progress").style.width = `${(state.current / state.total) * 100}%`;
   $("question-category").textContent = q.category.toUpperCase();
   $("question-text").textContent = q.text;
-  $("bot-message").textContent =
-    state.current === 0 ? "Let's see what you know." :
-    state.current === state.total - 1 ? "One last move. Think carefully." :
-    "Stay sharp. The details matter.";
+  avatar.onQuestion(state.current, state.total);
 
   const options = $("options");
   options.innerHTML = "";
   $("explanation").className = "explanation";
   $("explanation").textContent = "";
-  $("next-btn").classList.add("hidden");
+  $("next-dock").classList.add("hidden");
+  window.scrollTo({ top: 0, behavior: "smooth" });
 
   q.options.forEach((text, index) => {
     const btn = document.createElement("button");
@@ -187,7 +355,7 @@ async function answerQuestion(optionIndex) {
     // Don't leave the question stuck: unlock it so the user can try again.
     delete state.answered[q.id];
     document.querySelectorAll(".option").forEach(btn => btn.classList.remove("disabled"));
-    $("bot-message").textContent = "Connection problem. Tap your answer again.";
+    avatar.onError();
     tg?.showAlert?.(err.message || "Something went wrong. Please try again.");
     return;
   }
@@ -204,14 +372,15 @@ async function answerQuestion(optionIndex) {
     state.rewardClaimed = Boolean(result.rewardClaimed);
   }
 
-  $("bot-message").textContent = result.correct
-    ? "Correct. Keep going."
-    : "Not this time. Learn from it and continue.";
+  avatar.onAnswer(result.correct);
+  tg?.HapticFeedback?.notificationOccurred?.(result.correct ? "success" : "error");
 
   $("explanation").textContent = result.explanation;
   $("explanation").classList.add("show");
-  $("next-btn").classList.remove("hidden");
   $("next-btn").textContent = state.current === state.total - 1 ? "FINISH QUEST  →" : "CONTINUE  →";
+  $("next-dock").classList.remove("hidden");
+  // Bring the explanation into view above the docked button.
+  $("explanation").scrollIntoView({ behavior: "smooth", block: "center" });
   updateHeader();
 }
 
@@ -222,6 +391,7 @@ function nextQuestion() {
 }
 
 function showResult() {
+  avatar.disarmIdle();
   $("result-score").textContent = `${state.score}/${state.total}`;
   $("result-xp").textContent = `+${state.score * XP_PER_CORRECT}`;
   $("result-streak").textContent = state.streak;
@@ -229,6 +399,11 @@ function showResult() {
     state.score === state.total ? "Perfect run." :
     state.score >= Math.ceil(state.total * 0.6) ? "Solid work." :
     "Keep building.";
+
+  const line = avatar.resultLine(state.score, state.total);
+  $("result-avatar").dataset.emotion = line.emotion;
+  applyPortrait($("result-avatar").querySelector(".avatar-frame"), line.emotion);
+  $("result-quote").textContent = `«${line.text}»`;
 
   $("result-copy").textContent =
     `You completed today's Ledger Quest with ${state.score} correct answer${state.score === 1 ? "" : "s"}.`;

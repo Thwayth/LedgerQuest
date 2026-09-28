@@ -65,9 +65,15 @@
         </div>
       </div>
 
-      <div class="bot-row">
-        <img class="bot-mini" src="/assets/ledger-bot.png" alt="">
-        <div class="bot-message" id="bot-message">Let's see what you know.</div>
+      <div class="avatar-stage" id="avatar" data-emotion="neutral">
+        <div class="avatar-glow"></div>
+        <div class="avatar-frame" id="avatar-frame">
+          <div class="avatar-led"></div>
+        </div>
+        <div class="avatar-bubble">
+          <div class="avatar-mood"><span class="mood-dot"></span><span id="avatar-mood">ONLINE</span></div>
+          <div class="avatar-text" id="bot-message"></div>
+        </div>
       </div>
 
       <div class="question-card">
@@ -77,12 +83,18 @@
       </div>
 
       <div class="explanation" id="explanation"></div>
-      <button class="next-btn hidden" id="next-btn">CONTINUE <span>→</span></button>
     </section>
+
+    <div class="next-dock hidden" id="next-dock">
+      <button class="next-btn" id="next-btn">CONTINUE <span>→</span></button>
+    </div>
 
     <section id="result-screen" class="screen">
       <div class="result-card">
-        <div class="result-icon">✓</div>
+        <div class="result-avatar" id="result-avatar" data-emotion="happy">
+          <div class="avatar-frame"><div class="avatar-led"></div></div>
+        </div>
+        <div class="avatar-quote" id="result-quote"></div>
         <div class="eyebrow">QUEST COMPLETE</div>
         <h1 id="result-title">Good work.</h1>
         <p id="result-copy">Your daily intelligence check is complete.</p>
@@ -98,9 +110,10 @@
           <span id="reward-title"></span>
         </div>
 
-        <button class="primary-btn hidden" id="claim-btn">CLAIM REWARD <span>→</span></button>
-
-        <button class="primary-btn" id="home-btn">BACK TO QUEST <span>→</span></button>
+        <div class="btn-stack">
+          <button class="primary-btn hidden" id="claim-btn">CLAIM REWARD <span>→</span></button>
+          <button class="secondary-btn" id="home-btn">BACK TO QUEST <span>→</span></button>
+        </div>
       </div>
     </section>
 
