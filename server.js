@@ -8,6 +8,7 @@ import { fileURLToPath } from "url";
 
 import { createStore } from "./store.js";
 import { questionsForDay } from "./questions.js";
+import { REWARD_TIERS, rewardForScore, rewardInfo } from "./rewards.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -58,18 +59,6 @@ const store = createStore();
 
 // Filled in once at startup via bot.telegram.getMe().
 let BOT_USERNAME = null;
-
-// Daily completion rewards. One is picked at random each time
-// a user finishes today's quest for the first time.
-const REWARDS = [
-  "Сигнал на 300/400/500%",
-  "Доступ в закрытое сообщество",
-  "Сделка на 5X"
-];
-
-function pickRandomReward() {
-  return REWARDS[Math.floor(Math.random() * REWARDS.length)];
-}
 
 // ---------- Dates ----------
 
@@ -135,11 +124,12 @@ async function loadUser(id) {
 // info since this is the admin's only reliable way to know who to reward.
 function buildAdminMessage(ctx, reward) {
   const who = ctx.from.username ? `@${ctx.from.username}` : ctx.from.first_name || "без имени";
+  const tier = rewardInfo(reward)?.tier;
   return (
     `🎁 Выигрыш в Ledger Quest\n\n` +
     `Пользователь: ${who}\n` +
     `Telegram ID: ${ctx.from.id}\n` +
-    `Награда: ${reward}`
+    `Награда: ${reward}` + (tier ? ` (${tier})` : "")
   );
 }
 
@@ -278,8 +268,9 @@ app.get("/api/daily", requireCaller, asyncRoute(async (req, res) => {
     xp: result.xp,
     streak: result.streak,
     answered,
-    reward: rewardToday ? result.reward : null,
+    reward: rewardToday ? rewardInfo(result.reward) : null,
     rewardClaimed: rewardToday ? result.rewardClaimed : false,
+    rewardTiers: REWARD_TIERS.filter(Boolean).map(({ tier, title }) => ({ tier, title })),
     completed: answered.length >= questions.length
   });
 }));
@@ -314,9 +305,15 @@ app.post("/api/answer", requireCaller, asyncRoute(async (req, res) => {
     if (finished && user.lastCompletedDate !== user.day) {
       user.streak = user.lastCompletedDate === previousDay(user.day) ? user.streak + 1 : 1;
       user.lastCompletedDate = user.day;
-      user.reward = pickRandomReward();
-      user.rewardDay = user.day;
-      user.rewardClaimed = false;
+
+      // Reward depends on how many answers were correct. With 0 correct
+      // there's no new reward, and an older unclaimed one is kept.
+      const earned = rewardForScore(user.score, questions.length);
+      if (earned) {
+        user.reward = earned.title;
+        user.rewardDay = user.day;
+        user.rewardClaimed = false;
+      }
     }
 
     await store.saveUser(user);
@@ -333,7 +330,7 @@ app.post("/api/answer", requireCaller, asyncRoute(async (req, res) => {
         streak: user.streak,
         answeredCount: Object.keys(user.answers).length,
         finished,
-        reward: rewardToday ? user.reward : null,
+        reward: rewardToday ? rewardInfo(user.reward) : null,
         rewardClaimed: rewardToday ? user.rewardClaimed : false
       }
     };
