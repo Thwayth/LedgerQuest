@@ -105,9 +105,20 @@
           <div><strong id="result-streak">0</strong><span>STREAK</span></div>
         </div>
 
-        <div class="explanation show hidden" id="reward-box">
-          <span class="label">TODAY'S REWARD</span><br>
-          <span id="reward-title"></span>
+        <div class="reward-card hidden" id="reward-box" data-tier="">
+          <div class="reward-head">
+            <span class="label">TODAY'S REWARD</span>
+            <span class="tier-badge" id="reward-tier"></span>
+          </div>
+          <div class="reward-title" id="reward-title"></div>
+          <div class="reward-note" id="reward-note"></div>
+          <div class="reward-ladder" id="reward-ladder" aria-hidden="true"></div>
+          <div class="reward-next" id="reward-next"></div>
+        </div>
+
+        <div class="reward-card empty hidden" id="no-reward">
+          <div class="reward-title">Сегодня без награды</div>
+          <div class="reward-note" id="no-reward-note">Награда начинается с 1 правильного ответа. Завтра новый квест.</div>
         </div>
 
         <div class="btn-stack">

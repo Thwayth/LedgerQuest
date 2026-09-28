@@ -87,6 +87,19 @@ Questions live in `questions.js`. Every day each player gets their own random
 The set stays the same if the player reopens the app on the same day.
 Add more questions to the pool to make the rotation less repetitive.
 
+## Rewards
+The reward depends on the number of correct answers (0 correct = no reward):
+
+| Correct | Tier | Reward |
+|---|---|---|
+| 1 | COMMON | Гайд «5 ошибок, которые сливают депозит» |
+| 2 | UNCOMMON | Разбор твоей монеты от аналитика |
+| 3 | RARE | Доступ в закрытое комьюнити на 7 дней |
+| 4 | EPIC | Сделка на 5X |
+| 5 | LEGENDARY | Сигнал на 300% |
+
+Edit titles and descriptions in `rewards.js`.
+
 ## Render free plan: cold starts
 On the free plan Render puts the service to sleep after 15 minutes without traffic.
 The next visitor sees Render's "application loading" screen for ~30–60 seconds,

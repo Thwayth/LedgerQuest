@@ -42,7 +42,8 @@ const state = {
   streak: 0,
   answered: {},
   reward: null,
-  rewardClaimed: false
+  rewardClaimed: false,
+  rewardTiers: []
 };
 
 const $ = id => document.getElementById(id);
@@ -240,6 +241,7 @@ async function init() {
   state.streak = daily.streak;
   state.reward = daily.reward || null;
   state.rewardClaimed = Boolean(daily.rewardClaimed);
+  state.rewardTiers = daily.rewardTiers || [];
 
   // Rebuild which questions are already answered today,
   // so reopening the app doesn't restart from question 1.
@@ -408,19 +410,53 @@ function showResult() {
   $("result-copy").textContent =
     `You completed today's Ledger Quest with ${state.score} correct answer${state.score === 1 ? "" : "s"}.`;
 
-  if (state.reward) {
-    $("reward-box").classList.remove("hidden");
-    $("reward-title").textContent = state.reward;
-    // Already claimed: keep showing the reward, but hide the claim button.
-    $("claim-btn").classList.toggle("hidden", state.rewardClaimed);
-  } else {
-    $("reward-box").classList.add("hidden");
-    $("claim-btn").classList.add("hidden");
-  }
+  renderReward();
 
   updateHome();
   updateHeader();
   showScreen("result-screen");
+}
+
+// Reward card: tier color, title, a 5-step ladder and a hint at the top reward.
+function renderReward() {
+  const reward = state.reward;
+  $("no-reward").classList.toggle("hidden", Boolean(reward));
+  $("reward-box").classList.toggle("hidden", !reward);
+  // Already claimed: keep showing the reward, but hide the claim button.
+  $("claim-btn").classList.toggle("hidden", !reward || state.rewardClaimed);
+  if (!reward) return;
+
+  const tiers = state.rewardTiers;
+  const level = tiers.findIndex(t => t.title === reward.title) + 1;
+
+  $("reward-box").dataset.tier = reward.tier || "";
+  $("reward-tier").textContent = reward.tier || "";
+  $("reward-tier").classList.toggle("hidden", !reward.tier);
+  $("reward-title").textContent = reward.title;
+  $("reward-note").textContent = state.rewardClaimed ? "Награда уже забрана." : reward.note || "";
+
+  const ladder = $("reward-ladder");
+  ladder.innerHTML = "";
+  ladder.classList.toggle("hidden", !level || !tiers.length);
+  tiers.forEach((_, i) => {
+    const step = document.createElement("span");
+    if (i < level) step.classList.add("on");
+    if (i === level - 1) step.classList.add("current");
+    ladder.appendChild(step);
+  });
+
+  const top = tiers[tiers.length - 1];
+  const next = $("reward-next");
+  if (level && top && level < tiers.length) {
+    next.innerHTML = "";
+    next.append("За идеальный результат: ");
+    const b = document.createElement("b");
+    b.textContent = top.title;
+    next.append(b);
+    next.classList.remove("hidden");
+  } else {
+    next.classList.add("hidden");
+  }
 }
 
 function claimReward() {
