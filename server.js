@@ -202,7 +202,7 @@ function resolveCaller(req) {
   const initData = req.get("X-Telegram-Init-Data");
   if (initData) {
     const tgUser = validateInitData(initData);
-    if (!tgUser) return { error: "Invalid or expired Telegram session. Reopen the app." };
+    if (!tgUser) return { error: "Сессия Telegram устарела. Закрой приложение и открой снова." };
     return { id: String(tgUser.id), tgUser, demo: false };
   }
 
@@ -213,7 +213,7 @@ function resolveCaller(req) {
     }
   }
 
-  return { error: "Open Ledger Quest from Telegram." };
+  return { error: "Открой Ledger Quest через Telegram." };
 }
 
 function requireCaller(req, res, next) {
@@ -245,7 +245,7 @@ app.post("/api/session", requireCaller, (req, res) => {
   res.json({
     demo,
     botUsername: BOT_USERNAME,
-    user: demo ? { first_name: "Quest", username: "demo" } : tgUser
+    user: demo ? { first_name: "трейдер", username: "demo" } : tgUser
   });
 });
 
@@ -283,15 +283,15 @@ app.post("/api/answer", requireCaller, asyncRoute(async (req, res) => {
     const questions = todaysQuestions(user.day, req.caller.id);
 
     const question = questions.find(q => q.id === questionId);
-    if (!question) return { status: 400, body: { error: "Question not found" } };
+    if (!question) return { status: 400, body: { error: "Вопрос не найден. Обнови приложение." } };
 
     const index = Number(optionIndex);
     if (!Number.isInteger(index) || index < 0 || index >= question.options.length) {
-      return { status: 400, body: { error: "Invalid option" } };
+      return { status: 400, body: { error: "Такого варианта ответа нет." } };
     }
 
     if (user.answers[questionId] !== undefined) {
-      return { status: 400, body: { error: "Already answered" } };
+      return { status: 400, body: { error: "На этот вопрос ты уже ответил." } };
     }
 
     const correct = index === question.correct;
@@ -341,7 +341,7 @@ app.post("/api/answer", requireCaller, asyncRoute(async (req, res) => {
 
 app.use("/api", (err, req, res, next) => {
   console.error("API error:", err);
-  res.status(500).json({ error: "Server error. Please try again." });
+  res.status(500).json({ error: "Ошибка сервера. Попробуй ещё раз." });
 });
 
 // ---------- Bot ----------
@@ -351,15 +351,15 @@ async function configureBot() {
   await bot.telegram.setChatMenuButton({
     menuButton: {
       type: "web_app",
-      text: "Open Quest",
+      text: "Открыть квест",
       web_app: { url: WEB_APP_URL }
     }
   });
 
   await bot.telegram.setMyCommands([
-    { command: "start", description: "Start Ledger Quest" },
-    { command: "quest", description: "Open today's quest" },
-    { command: "stats", description: "Show your stats" }
+    { command: "start", description: "Запустить Ledger Quest" },
+    { command: "quest", description: "Открыть квест дня" },
+    { command: "stats", description: "Моя статистика" }
   ]);
 }
 
@@ -403,11 +403,11 @@ bot.start(async ctx => {
 
   await ctx.reply(
     `⚡ LEDGER QUEST\n\n` +
-    `Five questions. One daily quest.\n` +
-    `Test your knowledge of markets, crypto, risk and trading.\n\n` +
-    `Your daily challenge is waiting.`,
+    `Пять вопросов. Один квест в день.\n` +
+    `Проверь знания о рынках, крипте, рисках и трейдинге.\n\n` +
+    `Чем больше верных ответов, тем круче награда. Твой квест уже ждёт.`,
     Markup.inlineKeyboard([
-      Markup.button.webApp("🚀 Open Ledger Quest", WEB_APP_URL)
+      Markup.button.webApp("🚀 Открыть Ledger Quest", WEB_APP_URL)
     ])
   );
 });
@@ -466,15 +466,15 @@ bot.action("claim_yes", async ctx => {
 bot.action("claim_later", async ctx => {
   await ctx.answerCbQuery();
   await ctx.editMessageText(
-    "Хорошо. Нажми Claim Reward ещё раз, когда будешь готов забрать выигрыш."
+    "Хорошо. Нажми «Забрать награду» ещё раз, когда будешь готов."
   );
 });
 
 bot.command("quest", async ctx => {
   await ctx.reply(
-    "Your daily quest is ready.",
+    "Квест дня готов.",
     Markup.inlineKeyboard([
-      Markup.button.webApp("🧠 Start Quest", WEB_APP_URL)
+      Markup.button.webApp("🧠 Начать квест", WEB_APP_URL)
     ])
   );
 });
@@ -488,10 +488,10 @@ bot.command("stats", async ctx => {
   });
   const total = todaysQuestions(user.day, id).length;
   await ctx.reply(
-    `🏆 LEDGER QUEST STATS\n\n` +
-    `XP: ${user.xp}\n` +
-    `Today's score: ${user.score}/${total}\n` +
-    `Streak: ${user.streak} 🔥`
+    `🏆 СТАТИСТИКА LEDGER QUEST\n\n` +
+    `Опыт: ${user.xp} XP\n` +
+    `Сегодня: ${user.score} из ${total}\n` +
+    `Серия: ${user.streak} 🔥`
   );
 });
 

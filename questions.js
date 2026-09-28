@@ -7,7 +7,7 @@
 export const QUESTION_POOL = [
   {
     id: "q1",
-    category: "Markets",
+    category: "Рынки",
     text: "Если рыночная доходность облигаций растёт, что обычно происходит с ценой уже выпущенной облигации?",
     options: ["Растёт", "Падает", "Не меняется", "Всегда удваивается"],
     correct: 1,
@@ -15,7 +15,7 @@ export const QUESTION_POOL = [
   },
   {
     id: "q2",
-    category: "Crypto",
+    category: "Крипто",
     text: "Что означает высокая ликвидность торговой пары?",
     options: [
       "Всегда высокий рост цены",
@@ -28,7 +28,7 @@ export const QUESTION_POOL = [
   },
   {
     id: "q3",
-    category: "Risk",
+    category: "Риски",
     text: "Что произойдёт с риском позиции, если увеличить размер позиции при неизменном стоп-лоссе?",
     options: [
       "Риск обычно увеличится",
@@ -41,7 +41,7 @@ export const QUESTION_POOL = [
   },
   {
     id: "q4",
-    category: "Trading",
+    category: "Трейдинг",
     text: "Что такое проскальзывание (slippage)?",
     options: [
       "Разница между ожидаемой и фактической ценой исполнения",
@@ -54,7 +54,7 @@ export const QUESTION_POOL = [
   },
   {
     id: "q5",
-    category: "Trading",
+    category: "Трейдинг",
     text: "Что означает термин market order?",
     options: [
       "Ордер исполняется по доступным рыночным ценам",
@@ -67,7 +67,7 @@ export const QUESTION_POOL = [
   },
   {
     id: "q6",
-    category: "Trading",
+    category: "Трейдинг",
     text: "Чем limit order отличается от market order?",
     options: [
       "Исполняется только по указанной цене или лучше",
@@ -80,7 +80,7 @@ export const QUESTION_POOL = [
   },
   {
     id: "q7",
-    category: "Trading",
+    category: "Трейдинг",
     text: "Что такое спред в стакане заявок?",
     options: [
       "Разница между лучшей ценой покупки и лучшей ценой продажи",
@@ -93,7 +93,7 @@ export const QUESTION_POOL = [
   },
   {
     id: "q8",
-    category: "Risk",
+    category: "Риски",
     text: "Что происходит с позицией при ликвидации на маржинальной торговле?",
     options: [
       "Биржа принудительно закрывает её из‑за нехватки маржи",
@@ -106,7 +106,7 @@ export const QUESTION_POOL = [
   },
   {
     id: "q9",
-    category: "Risk",
+    category: "Риски",
     text: "Как кредитное плечо влияет на результат сделки?",
     options: [
       "Увеличивает и потенциальную прибыль, и потенциальный убыток",
@@ -119,7 +119,7 @@ export const QUESTION_POOL = [
   },
   {
     id: "q10",
-    category: "Risk",
+    category: "Риски",
     text: "Что такое диверсификация портфеля?",
     options: [
       "Распределение средств между разными активами для снижения риска",
@@ -132,7 +132,7 @@ export const QUESTION_POOL = [
   },
   {
     id: "q11",
-    category: "Bitcoin",
+    category: "Биткоин",
     text: "Что такое халвинг биткоина?",
     options: [
       "Уменьшение награды за блок вдвое",
@@ -145,7 +145,7 @@ export const QUESTION_POOL = [
   },
   {
     id: "q12",
-    category: "Bitcoin",
+    category: "Биткоин",
     text: "Каково максимальное количество биткоинов, заложенное в протокол?",
     options: ["21 миллион", "100 миллионов", "Не ограничено", "1 миллиард"],
     correct: 0,
@@ -153,7 +153,7 @@ export const QUESTION_POOL = [
   },
   {
     id: "q13",
-    category: "Crypto",
+    category: "Крипто",
     text: "Что такое стейблкоин?",
     options: [
       "Токен, курс которого привязан к стабильному активу, например доллару",
@@ -166,7 +166,7 @@ export const QUESTION_POOL = [
   },
   {
     id: "q14",
-    category: "Crypto",
+    category: "Крипто",
     text: "Что даёт seed‑фраза некастодиального кошелька?",
     options: [
       "Полный доступ к средствам кошелька",
@@ -179,7 +179,7 @@ export const QUESTION_POOL = [
   },
   {
     id: "q15",
-    category: "Markets",
+    category: "Рынки",
     text: "Что обычно означает «бычий» рынок?",
     options: [
       "Длительный рост цен",
@@ -192,7 +192,7 @@ export const QUESTION_POOL = [
   },
   {
     id: "q16",
-    category: "Markets",
+    category: "Рынки",
     text: "Как повышение ключевой ставки центробанком обычно влияет на рискованные активы?",
     options: [
       "Как правило, давит на их цены",
@@ -205,7 +205,7 @@ export const QUESTION_POOL = [
   },
   {
     id: "q17",
-    category: "Markets",
+    category: "Рынки",
     text: "Что такое рыночная капитализация монеты?",
     options: [
       "Цена монеты, умноженная на количество монет в обращении",
@@ -218,7 +218,7 @@ export const QUESTION_POOL = [
   },
   {
     id: "q18",
-    category: "Trading",
+    category: "Трейдинг",
     text: "Для чего используется стоп‑лосс?",
     options: [
       "Чтобы ограничить убыток по позиции",
@@ -231,7 +231,7 @@ export const QUESTION_POOL = [
   },
   {
     id: "q19",
-    category: "Risk",
+    category: "Риски",
     text: "Если позиция упала на 50%, какой рост нужен, чтобы вернуться в ноль?",
     options: ["50%", "100%", "25%", "75%"],
     correct: 1,
@@ -239,7 +239,7 @@ export const QUESTION_POOL = [
   },
   {
     id: "q20",
-    category: "Crypto",
+    category: "Крипто",
     text: "Что такое funding rate на бессрочных фьючерсах?",
     options: [
       "Периодические платежи между лонгами и шортами",
