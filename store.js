@@ -10,6 +10,8 @@ function emptyUser(id) {
     id,
     xp: 0,
     streak: 0,
+    bestStreak: 0,
+    questsCompleted: 0,
     lastCompletedDate: null,
     day: null,
     answers: {},
@@ -20,18 +22,40 @@ function emptyUser(id) {
   };
 }
 
+// Reward history entries:
+// { day, title, tier, score, total, status: "pending" | "claimed" | "expired", createdAt, claimedAt }
+
 class MemoryStore {
   constructor() {
     this.users = new Map();
+    this.rewards = new Map();
     this.kind = "memory";
   }
   async init() {}
   async getUser(id) {
     const existing = this.users.get(id);
-    return existing ? structuredClone(existing) : emptyUser(id);
+    return existing ? { ...emptyUser(id), ...structuredClone(existing) } : emptyUser(id);
   }
   async saveUser(user) {
     this.users.set(user.id, structuredClone(user));
+  }
+
+  async addReward(userId, entry) {
+    const list = this.rewards.get(userId) || [];
+    // A newer reward replaces any older one that was never claimed.
+    list.forEach(r => { if (r.status === "pending") r.status = "expired"; });
+    list.push({ ...entry, status: "pending", createdAt: new Date().toISOString(), claimedAt: null });
+    this.rewards.set(userId, list);
+  }
+  async markRewardClaimed(userId, day) {
+    const r = (this.rewards.get(userId) || []).find(x => x.day === day && x.status === "pending");
+    if (r) {
+      r.status = "claimed";
+      r.claimedAt = new Date().toISOString();
+    }
+  }
+  async listRewards(userId, limit = 50) {
+    return structuredClone((this.rewards.get(userId) || []).slice(-limit).reverse());
   }
 }
 
@@ -61,6 +85,27 @@ class PostgresStore {
         updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
+    // Columns added after the first release.
+    await this.pool.query(`
+      ALTER TABLE lq_users
+        ADD COLUMN IF NOT EXISTS best_streak      INTEGER NOT NULL DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS quests_completed INTEGER NOT NULL DEFAULT 0
+    `);
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS lq_rewards (
+        id         BIGSERIAL PRIMARY KEY,
+        user_id    TEXT NOT NULL,
+        day        TEXT NOT NULL,
+        title      TEXT NOT NULL,
+        tier       TEXT,
+        score      INTEGER NOT NULL,
+        total      INTEGER NOT NULL,
+        status     TEXT NOT NULL DEFAULT 'pending',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        claimed_at TIMESTAMPTZ
+      )
+    `);
+    await this.pool.query(`CREATE INDEX IF NOT EXISTS lq_rewards_user_idx ON lq_rewards (user_id, id DESC)`);
   }
 
   async getUser(id) {
@@ -71,6 +116,8 @@ class PostgresStore {
       id: r.id,
       xp: r.xp,
       streak: r.streak,
+      bestStreak: r.best_streak,
+      questsCompleted: r.quests_completed,
       lastCompletedDate: r.last_completed_date,
       day: r.day,
       answers: r.answers || {},
@@ -84,8 +131,9 @@ class PostgresStore {
   async saveUser(u) {
     await this.pool.query(
       `INSERT INTO lq_users
-         (id, xp, streak, last_completed_date, day, answers, score, reward, reward_day, reward_claimed, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW())
+         (id, xp, streak, last_completed_date, day, answers, score, reward, reward_day, reward_claimed,
+          best_streak, quests_completed, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW())
        ON CONFLICT (id) DO UPDATE SET
          xp = EXCLUDED.xp,
          streak = EXCLUDED.streak,
@@ -96,13 +144,54 @@ class PostgresStore {
          reward = EXCLUDED.reward,
          reward_day = EXCLUDED.reward_day,
          reward_claimed = EXCLUDED.reward_claimed,
+         best_streak = EXCLUDED.best_streak,
+         quests_completed = EXCLUDED.quests_completed,
          updated_at = NOW()`,
       [
         u.id, u.xp, u.streak, u.lastCompletedDate, u.day,
         JSON.stringify(u.answers || {}), u.score,
-        u.reward, u.rewardDay, u.rewardClaimed
+        u.reward, u.rewardDay, u.rewardClaimed,
+        u.bestStreak || 0, u.questsCompleted || 0
       ]
     );
+  }
+
+  async addReward(userId, entry) {
+    // A newer reward replaces any older one that was never claimed.
+    await this.pool.query(
+      `UPDATE lq_rewards SET status = 'expired' WHERE user_id = $1 AND status = 'pending'`,
+      [userId]
+    );
+    await this.pool.query(
+      `INSERT INTO lq_rewards (user_id, day, title, tier, score, total) VALUES ($1,$2,$3,$4,$5,$6)`,
+      [userId, entry.day, entry.title, entry.tier, entry.score, entry.total]
+    );
+  }
+
+  async markRewardClaimed(userId, day) {
+    await this.pool.query(
+      `UPDATE lq_rewards SET status = 'claimed', claimed_at = NOW()
+       WHERE user_id = $1 AND day = $2 AND status = 'pending'`,
+      [userId, day]
+    );
+  }
+
+  async listRewards(userId, limit = 50) {
+    const { rows } = await this.pool.query(
+      `SELECT day, title, tier, score, total, status, created_at, claimed_at
+       FROM lq_rewards WHERE user_id = $1 ORDER BY id DESC LIMIT $2`,
+      [userId, limit]
+    );
+    return rows.map(r => ({
+      day: r.day,
+      title: r.title,
+      tier: r.tier,
+      score: r.score,
+      total: r.total,
+      status: r.status,
+      createdAt: r.created_at,
+      claimedAt: r.claimed_at
+    }));
   }
 }
 
