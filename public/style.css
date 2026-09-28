@@ -324,6 +324,25 @@ body.quiz-mode .app-shell { padding-bottom:110px; }
 .profile-stats strong { display:block; font-size:22px; color:var(--accent); font-variant-numeric:tabular-nums; }
 .profile-stats span { display:block; color:var(--muted); font-size:8px; letter-spacing:1.2px; font-weight:800; margin-top:4px; }
 
+#top-rank { color:var(--accent); }
+
+.rank-pill {
+  display:inline-flex; align-items:center; gap:5px; margin-top:8px;
+  border:1px solid rgba(116,230,195,.35); background:rgba(116,230,195,.08);
+  border-radius:999px; padding:4px 10px; font-size:10px; font-weight:800;
+  letter-spacing:.6px; color:var(--accent);
+}
+.rank-track {
+  height:6px; border-radius:999px; background:var(--panel);
+  border:1px solid var(--line); overflow:hidden; margin-bottom:6px;
+}
+.rank-track-fill {
+  height:100%; border-radius:999px;
+  background:linear-gradient(90deg, var(--accent-2), var(--accent));
+  transition:width .4s ease; width:0%;
+}
+.rank-next { color:var(--muted); font-size:10px; font-weight:700; margin-bottom:14px; }
+
 .history { border:1px solid var(--line); border-radius:22px; background:var(--panel); padding:16px; }
 .history-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
 .history-count { font-size:10px; color:var(--muted); }

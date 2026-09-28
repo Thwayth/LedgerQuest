@@ -8,7 +8,8 @@ import { fileURLToPath } from "url";
 
 import { createStore } from "./store.js";
 import { questionsForDay } from "./questions.js";
-import { REWARD_TIERS, rewardForScore, rewardInfo } from "./rewards.js";
+import { REWARD_TIERS, rewardInfo } from "./rewards.js";
+import { rankForXp, boostedRewardForScore } from "./ranks.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -266,6 +267,7 @@ app.get("/api/daily", requireCaller, asyncRoute(async (req, res) => {
     total: questions.length,
     score: result.score,
     xp: result.xp,
+    rank: rankForXp(result.xp),
     streak: result.streak,
     answered,
     reward: rewardToday ? rewardInfo(result.reward) : null,
@@ -308,9 +310,10 @@ app.post("/api/answer", requireCaller, asyncRoute(async (req, res) => {
       user.questsCompleted = (user.questsCompleted || 0) + 1;
       user.lastCompletedDate = user.day;
 
-      // Reward depends on how many answers were correct. With 0 correct
-      // there's no new reward, and an older unclaimed one is kept.
-      const earned = rewardForScore(user.score, questions.length);
+      // Reward depends on how many answers were correct — and, from the
+      // "Аналитик" rank up, a strong result can bump it up a tier.
+      // With 0 correct there's no new reward, and an older unclaimed one is kept.
+      const earned = boostedRewardForScore(user.score, questions.length, rankForXp(user.xp).index);
       if (earned) {
         user.reward = earned.title;
         user.rewardDay = user.day;
@@ -336,6 +339,7 @@ app.post("/api/answer", requireCaller, asyncRoute(async (req, res) => {
         explanation: question.explanation,
         score: user.score,
         xp: user.xp,
+        rank: rankForXp(user.xp),
         streak: user.streak,
         answeredCount: Object.keys(user.answers).length,
         finished,
@@ -359,6 +363,7 @@ app.get("/api/profile", requireCaller, asyncRoute(async (req, res) => {
 
   res.json({
     xp: user.xp,
+    rank: rankForXp(user.xp),
     streak: user.streak,
     bestStreak: user.bestStreak || 0,
     questsCompleted: user.questsCompleted || 0,
@@ -516,9 +521,14 @@ bot.command("stats", async ctx => {
     return user;
   });
   const total = todaysQuestions(user.day, id).length;
+  const rank = rankForXp(user.xp);
+  const nextLine = rank.nextName
+    ? `\nДо ранга «${rank.nextName}»: ${rank.xpToNext} XP`
+    : `\nМаксимальный ранг!`;
   await ctx.reply(
     `🏆 СТАТИСТИКА LEDGER QUEST\n\n` +
-    `Опыт: ${user.xp} XP\n` +
+    `Ранг: ${rank.icon} ${rank.name}\n` +
+    `Опыт: ${user.xp} XP${nextLine}\n` +
     `Сегодня: ${user.score} из ${total}\n` +
     `Серия: ${user.streak} 🔥`
   );

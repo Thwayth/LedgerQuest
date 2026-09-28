@@ -100,6 +100,25 @@ The reward depends on the number of correct answers (0 correct = no reward):
 
 Edit titles and descriptions in `rewards.js`.
 
+## Ranks
+XP now means something: it moves the player up a rank, shown instead of a
+bare number in the top pill and on the profile screen (with a progress bar
+to the next rank).
+
+| Rank | XP |
+|---|---|
+| 🌱 Новичок | 0 |
+| 📈 Трейдер | 150 |
+| 🧠 Аналитик | 400 |
+| 🎯 Профи | 800 |
+| 🐋 Кит | 1500 |
+
+From **Аналитик** up, a strong result also nudges the reward a tier higher
+(e.g. an Аналитик who gets 4/5 correct receives the LEGENDARY reward instead
+of EPIC). Higher ranks get a bigger nudge and it kicks in at a lower score —
+see `boostForRank` in `ranks.js`. Edit rank names/thresholds in `RANKS`,
+same file.
+
 ## Render free plan: cold starts
 On the free plan Render puts the service to sleep after 15 minutes without traffic.
 The next visitor sees Render's "application loading" screen for ~30–60 seconds,

@@ -39,6 +39,7 @@ const state = {
   current: 0,
   score: 0,
   xp: 0,
+  rank: { index: 0, name: "Новичок", icon: "🌱", nextName: "Трейдер", xpToNext: 150, progress: 0 },
   streak: 0,
   answered: {},
   reward: null,
@@ -117,6 +118,11 @@ const LINES = {
     "{n} верных подряд. Не сбавляй темп."
   ],
   proud: ["Четыре подряд. Я почти горжусь тобой. Почти.", "Серия, достойная легенды. Продолжай."],
+  rankUp: [
+    "Новый ранг: {rank}! Награды теперь щедрее.",
+    "Опа. Ранг {rank}. Рынок, готовься.",
+    "{rank} — уже неплохо. Дальше будет интереснее."
+  ],
   wrong: [
     "Мимо. Но теперь ты это знаешь.",
     "Рынок учит дорого, а я бесплатно. Прочитай пояснение.",
@@ -280,9 +286,15 @@ const avatar = {
     this.armIdle();
   },
 
-  onAnswer(correct) {
+  onAnswer(correct, newRank) {
     this.disarmIdle();
     const seconds = (Date.now() - this.questionShownAt) / 1000;
+
+    if (newRank) {
+      this.say(pick(LINES.rankUp).replace("{rank}", `${newRank.icon} ${newRank.name}`), "proud");
+      this.settle(4500);
+      return;
+    }
 
     if (correct) {
       this.correctRun += 1;
@@ -362,6 +374,7 @@ async function init() {
   state.total = daily.total || daily.questions.length;
   state.score = daily.score;
   state.xp = daily.xp;
+  if (daily.rank) state.rank = daily.rank;
   state.streak = daily.streak;
   state.reward = daily.reward || null;
   state.rewardClaimed = Boolean(daily.rewardClaimed);
@@ -400,6 +413,7 @@ function openScreen(id) {
 }
 
 function updateHeader() {
+  $("top-rank").textContent = `${state.rank.icon} ${state.rank.name}`;
   $("top-xp").textContent = `${state.xp} XP`;
   $("top-streak").textContent = `${state.streak} 🔥`;
 }
@@ -499,13 +513,15 @@ async function answerQuestion(optionIndex) {
 
   state.score = result.score;
   state.xp = result.xp;
+  const rankedUp = result.rank && result.rank.index > state.rank.index;
+  if (result.rank) state.rank = result.rank;
   state.streak = result.streak;
   if (result.reward) {
     state.reward = result.reward;
     state.rewardClaimed = Boolean(result.rewardClaimed);
   }
 
-  avatar.onAnswer(result.correct);
+  avatar.onAnswer(result.correct, rankedUp ? state.rank : null);
   tg?.HapticFeedback?.notificationOccurred?.(result.correct ? "success" : "error");
 
   $("explanation").textContent = result.explanation;
@@ -616,6 +632,18 @@ async function openProfile() {
   $("p-streak").textContent = profile.streak;
   $("p-best").textContent = profile.bestStreak;
   $("p-quests").textContent = profile.questsCompleted;
+
+  if (profile.rank) {
+    state.rank = profile.rank;
+    const rank = profile.rank;
+    $("p-rank-icon").textContent = rank.icon;
+    $("p-rank-name").textContent = rank.name;
+    $("p-rank-fill").style.width = `${Math.round(rank.progress * 100)}%`;
+    $("p-rank-next").textContent = rank.nextName
+      ? `До ранга «${rank.nextName}»: ${rank.xpToNext} XP`
+      : "Максимальный ранг достигнут";
+    updateHeader();
+  }
 
   const list = $("history-list");
   list.innerHTML = "";
