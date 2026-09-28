@@ -48,19 +48,45 @@ const state = {
 
 const $ = id => document.getElementById(id);
 
+// Russian plural: plural(3, ["ответ", "ответа", "ответов"]) -> "ответа"
+function plural(n, forms) {
+  const a = Math.abs(n) % 100;
+  const b = a % 10;
+  if (a > 10 && a < 20) return forms[2];
+  if (b > 1 && b < 5) return forms[1];
+  if (b === 1) return forms[0];
+  return forms[2];
+}
+
+const TIER_LABEL = {
+  COMMON: "ОБЫЧНАЯ",
+  UNCOMMON: "НЕОБЫЧНАЯ",
+  RARE: "РЕДКАЯ",
+  EPIC: "ЭПИЧЕСКАЯ",
+  LEGENDARY: "ЛЕГЕНДАРНАЯ"
+};
+
 // ---------- Avatar ----------
-// A "living" host: changes emotion (LED color, glow, motion), types out
-// remarks and comments on its own if the player goes quiet.
+// A "living" host. Each emotion changes the ear LED and eye glow color,
+// motion and particles; remarks are typed out and react to the category,
+// answer speed, streaks, taps and silence.
 
 const pick = list => list[Math.floor(Math.random() * list.length)];
 
 const LINES = {
-  intro: [
-    "Поехали. Посмотрим, что ты знаешь сегодня.",
-    "Я уже подобрала вопросы. Начинаем?",
-    "Кофе остыл, рынок открыт. Первый вопрос.",
-    "Сегодня без поблажек. Готовься."
-  ],
+  greet: {
+    morning: ["Доброе утро. Кофе допит? Тогда начинаем.", "Утро, рынок только просыпается. А ты уже здесь."],
+    day: ["Привет. Пять вопросов, и день станет продуктивнее.", "О, ты вовремя. Я как раз подобрала вопросы."],
+    evening: ["Добрый вечер. Самое время проверить голову.", "Вечерняя сессия? Уважаю."],
+    night: ["Не спится? Рынок тоже никогда не спит.", "Ночной трейдер. Проверим, не устал ли мозг."]
+  },
+  category: {
+    "Рынки": ["Вопрос про рынки. Тут важна логика, а не удача.", "Рынки. Думай о причинах и следствиях."],
+    "Крипто": ["Крипта — моя стихия. Посмотрим, твоя ли тоже.", "Крипто‑вопрос. Не верь хайпу, верь фактам."],
+    "Риски": ["Про риски. Самое скучное и самое важное.", "Риск‑менеджмент. Тот, кто это знает, живёт дольше."],
+    "Трейдинг": ["Трейдинг. Вспомни, как устроен стакан.", "Базовая механика торговли. Не торопись."],
+    "Биткоин": ["Биткоин. Классика, которую должен знать каждый.", "Вопрос про первую криптовалюту. Легко? Проверим."]
+  },
   next: [
     "Следующий. Тут есть подвох, присмотрись.",
     "Этот вопрос мне нравится.",
@@ -68,60 +94,63 @@ const LINES = {
     "Думай как трейдер, а не как игрок.",
     "Спокойно. Прочитай все варианты."
   ],
-  last: [
-    "Последний вопрос. Соберись.",
-    "Финальный ход. Не торопись."
-  ],
+  last: ["Последний вопрос. Соберись.", "Финальный ход. Всё решится сейчас."],
+  lastWorried: ["Последний шанс отыграться. Я в тебя верю… кажется.", "Финал. Давай без ошибок, ладно?"],
   idle: [
     "Думаешь? Это хороший знак.",
     "Первая мысль не всегда верная…",
     "Я подожду. Рынок тоже умеет ждать.",
     "Подсказка: ищи вариант без слова «всегда».",
-    "Хм. Интересно, что ты выберешь."
+    "Тик‑так. Шучу, таймера нет."
   ],
-  correct: [
-    "Точно в цель.",
-    "Именно так. Чистая работа.",
-    "Вот это уровень.",
-    "Да! Так и есть."
+  idleLong: [
+    "Ты там не уснул? Я всё ещё жду.",
+    "Кажется, я знаю ответ. Но не скажу.",
+    "Могу пока посчитать спред. Или просто подождать."
   ],
+  correct: ["Точно в цель.", "Именно так. Чистая работа.", "Вот это уровень.", "Да! Так и есть."],
+  fast: ["Молниеносно! Ты это знал заранее?", "Меньше трёх секунд. Впечатляет.", "Быстро и верно. Так и надо."],
+  slow: ["Долго думал, но результат того стоил.", "Не спеша и в точку. Мне нравится."],
   streak: [
     "Уже {n} подряд. Горячая серия 🔥",
     "{n} из {n}. Мне начинает нравиться.",
     "{n} верных подряд. Не сбавляй темп."
   ],
+  proud: ["Четыре подряд. Я почти горжусь тобой. Почти.", "Серия, достойная легенды. Продолжай."],
   wrong: [
     "Мимо. Но теперь ты это знаешь.",
     "Рынок учит дорого, а я бесплатно. Прочитай пояснение.",
     "Бывает. Главное понять, почему.",
     "Не в этот раз. Запомни это."
   ],
-  wrongAgain: [
-    "Ничего, следующий возьмём.",
-    "Выдыхай. Сейчас отыграемся."
-  ],
-  error: [
-    "Связь пропала. Нажми ответ ещё раз."
-  ],
+  wrongFast: ["Слишком быстро нажал. Рынок наказывает за спешку.", "Поспешил. Читай варианты до конца."],
+  wrongAgain: ["Ничего, следующий возьмём.", "Выдыхай. Сейчас отыграемся."],
+  poke: ["Эй! Я вообще‑то работаю.", "Щекотно.", "Это был мой наушник.", "Я не кнопка ответа, если что.", "Хм? Сосредоточься на вопросе."],
+  pokeAngry: ["Всё, я обиделась. На три секунды.", "Ещё раз ткнёшь — поставлю тебе минус XP. Шучу. Наверное."],
+  error: ["Связь пропала. Нажми ответ ещё раз."],
   resultPerfect: ["Идеально. Ни одной ошибки!", "Безупречно. Ты сегодня в форме."],
   resultGood: ["Сильный результат. Завтра добьём до идеала.", "Хорошо сыграно."],
   resultLow: ["Сегодня рынок победил. Завтра реванш.", "Каждая ошибка делает тебя сильнее."]
 };
 
-const MOOD_LABEL = {
-  neutral: "ONLINE",
-  thinking: "THINKING",
-  happy: "PLEASED",
-  excited: "IMPRESSED",
-  sad: "HMM…",
-  surprised: "OH!"
+// Mood label shown above the remark, and the particles each mood emits.
+const MOODS = {
+  neutral:   { label: "НА СВЯЗИ",   fx: null },
+  thinking:  { label: "ДУМАЕТ",     fx: { glyphs: ["?", "…"], count: 3, kind: "float" } },
+  happy:     { label: "РАДУЕТСЯ",   fx: { glyphs: ["✦", "+"], count: 6, kind: "burst" } },
+  excited:   { label: "В ВОСТОРГЕ", fx: { glyphs: ["✦", "★", "🔥"], count: 12, kind: "burst" } },
+  proud:     { label: "ГОРДИТСЯ",   fx: { glyphs: ["♛", "✦", "★"], count: 14, kind: "burst" } },
+  sad:       { label: "РАССТРОЕНА", fx: { glyphs: ["·", "|"], count: 8, kind: "rain" } },
+  surprised: { label: "УДИВЛЕНА",   fx: { glyphs: ["!"], count: 2, kind: "float" } },
+  worried:   { label: "ВОЛНУЕТСЯ",  fx: { glyphs: ["~"], count: 3, kind: "float" } },
+  smug:      { label: "ХИТРИТ",     fx: { glyphs: ["♪"], count: 2, kind: "float" } },
+  annoyed:   { label: "ВОРЧИТ",     fx: { glyphs: ["#", "%", "!"], count: 4, kind: "burst" } }
 };
 
 // Optional per-emotion portraits: put public/assets/avatar/<emotion>.jpg
-// (neutral, thinking, happy, excited, sad, surprised) and they are used
-// automatically instead of the default close-up.
+// (any of the keys in MOODS) and they are used instead of the default close-up.
 const customPortraits = {};
-Object.keys(MOOD_LABEL).forEach(emotion => {
+Object.keys(MOODS).forEach(emotion => {
   const img = new Image();
   img.onload = () => { customPortraits[emotion] = img.src; };
   img.src = `/assets/avatar/${emotion}.jpg`;
@@ -134,11 +163,19 @@ function applyPortrait(frame, emotion) {
   frame.style.backgroundImage = src ? `url("${src}")` : "";
 }
 
+const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
 const avatar = {
   typingTimer: null,
   idleTimer: null,
+  idleLongTimer: null,
+  moodTimer: null,
+  questionShownAt: 0,
   correctRun: 0,
   wrongRun: 0,
+  wrongTotal: 0,
+  pokes: [],
+  greeted: false,
 
   setEmotion(emotion) {
     const stage = $("avatar");
@@ -146,16 +183,39 @@ const avatar = {
     stage.dataset.emotion = "neutral";
     void stage.offsetWidth;
     stage.dataset.emotion = emotion;
-    $("avatar-mood").textContent = MOOD_LABEL[emotion] || "ONLINE";
+    $("avatar-mood").textContent = MOODS[emotion]?.label || "НА СВЯЗИ";
     applyPortrait($("avatar-frame"), emotion);
+    this.particles(emotion);
+  },
+
+  // Small glyphs that burst, float up or drizzle down, depending on the mood.
+  particles(emotion) {
+    const fx = MOODS[emotion]?.fx;
+    const layer = $("avatar-fx");
+    if (!fx || !layer || reducedMotion) return;
+    for (let i = 0; i < fx.count; i++) {
+      const p = document.createElement("span");
+      p.className = `fx fx-${fx.kind}`;
+      p.textContent = pick(fx.glyphs);
+      p.style.setProperty("--x", `${fx.kind === "rain" ? Math.random() * 100 : 20 + Math.random() * 60}%`);
+      p.style.setProperty("--y", `${fx.kind === "rain" ? -5 : 30 + Math.random() * 25}%`);
+      p.style.setProperty("--dx", `${(Math.random() - 0.5) * 160}px`);
+      p.style.setProperty("--dy", `${-40 - Math.random() * 90}px`);
+      p.style.setProperty("--d", `${Math.random() * 0.35}s`);
+      p.style.setProperty("--s", `${0.8 + Math.random() * 0.8}`);
+      layer.appendChild(p);
+      setTimeout(() => p.remove(), 2200);
+    }
   },
 
   say(text, emotion) {
     if (emotion) this.setEmotion(emotion);
     const el = $("bot-message");
+    const stage = $("avatar");
     clearInterval(this.typingTimer);
     el.textContent = "";
     el.classList.add("typing");
+    stage.classList.add("speaking");
     const chars = [...text];
     let i = 0;
     this.typingTimer = setInterval(() => {
@@ -163,51 +223,106 @@ const avatar = {
       if (i >= chars.length) {
         clearInterval(this.typingTimer);
         el.classList.remove("typing");
+        stage.classList.remove("speaking");
       }
     }, 22);
   },
 
-  // If the player hasn't answered for a while, the host chimes in.
+  // After a strong reaction, drift back to a calm state.
+  settle(delay = 3200) {
+    clearTimeout(this.moodTimer);
+    this.moodTimer = setTimeout(() => {
+      const stage = $("avatar");
+      if (!["neutral", "thinking"].includes(stage.dataset.emotion)) this.setEmotion("neutral");
+    }, delay);
+  },
+
+  // If the player goes quiet, the host chimes in, then teases a bit later.
   armIdle() {
     this.disarmIdle();
     this.idleTimer = setTimeout(() => this.say(pick(LINES.idle), "thinking"), 11000);
+    this.idleLongTimer = setTimeout(() => this.say(pick(LINES.idleLong), "smug"), 26000);
   },
   disarmIdle() {
     clearTimeout(this.idleTimer);
+    clearTimeout(this.idleLongTimer);
   },
 
-  onQuestion(index, total) {
-    const line =
-      index === total - 1 ? pick(LINES.last) :
-      index === 0 || this.correctRun + this.wrongRun === 0 ? pick(LINES.intro) :
-      pick(LINES.next);
-    this.say(line, index === total - 1 ? "surprised" : "neutral");
+  greeting() {
+    const h = new Date().getHours();
+    const part = h < 5 ? "night" : h < 12 ? "morning" : h < 18 ? "day" : h < 23 ? "evening" : "night";
+    return pick(LINES.greet[part]);
+  },
+
+  onQuestion(index, total, category) {
+    clearTimeout(this.moodTimer);
+    this.questionShownAt = Date.now();
+    const isLast = index === total - 1;
+    let line;
+    let emotion = "neutral";
+
+    if (!this.greeted) {
+      line = this.greeting();
+      this.greeted = true;
+    } else if (isLast && this.wrongTotal >= 2) {
+      line = pick(LINES.lastWorried);
+      emotion = "worried";
+    } else if (isLast) {
+      line = pick(LINES.last);
+      emotion = "surprised";
+    } else if (LINES.category[category] && Math.random() < 0.6) {
+      line = pick(LINES.category[category]);
+    } else {
+      line = pick(LINES.next);
+    }
+
+    this.say(line, emotion);
     this.armIdle();
   },
 
   onAnswer(correct) {
     this.disarmIdle();
+    const seconds = (Date.now() - this.questionShownAt) / 1000;
+
     if (correct) {
       this.correctRun += 1;
       this.wrongRun = 0;
-      if (this.correctRun >= 2) {
-        this.say(pick(LINES.streak).replaceAll("{n}", this.correctRun), "excited");
-      } else {
-        this.say(pick(LINES.correct), "happy");
-      }
+      if (this.correctRun >= 4) this.say(pick(LINES.proud), "proud");
+      else if (this.correctRun >= 2) this.say(pick(LINES.streak).replaceAll("{n}", this.correctRun), "excited");
+      else if (seconds < 3) this.say(pick(LINES.fast), "surprised");
+      else if (seconds > 20) this.say(pick(LINES.slow), "happy");
+      else this.say(pick(LINES.correct), "happy");
     } else {
       this.wrongRun += 1;
+      this.wrongTotal += 1;
       this.correctRun = 0;
-      this.say(pick(this.wrongRun >= 2 ? LINES.wrongAgain : LINES.wrong), "sad");
+      if (seconds < 2.5) this.say(pick(LINES.wrongFast), "annoyed");
+      else this.say(pick(this.wrongRun >= 2 ? LINES.wrongAgain : LINES.wrong), "sad");
     }
+    this.settle(4500);
+  },
+
+  // Tapping the host: a few quips, then mild annoyance if it keeps happening.
+  poke() {
+    const now = Date.now();
+    this.pokes = this.pokes.filter(t => now - t < 4000);
+    this.pokes.push(now);
+    tg?.HapticFeedback?.impactOccurred?.("light");
+    if (this.pokes.length >= 4) {
+      this.pokes = [];
+      this.say(pick(LINES.pokeAngry), "annoyed");
+    } else {
+      this.say(pick(LINES.poke), pick(["surprised", "smug"]));
+    }
+    this.settle();
   },
 
   onError() {
-    this.say(pick(LINES.error), "surprised");
+    this.say(pick(LINES.error), "worried");
   },
 
   resultLine(score, total) {
-    if (score === total) return { text: pick(LINES.resultPerfect), emotion: "excited" };
+    if (score === total) return { text: pick(LINES.resultPerfect), emotion: "proud" };
     if (score >= Math.ceil(total * 0.6)) return { text: pick(LINES.resultGood), emotion: "happy" };
     return { text: pick(LINES.resultLow), emotion: "sad" };
   }
@@ -222,8 +337,17 @@ async function api(url, options = {}) {
   try {
     data = await response.json();
   } catch {}
-  if (!response.ok) throw new Error(data.error || "Request failed");
+  if (!response.ok) throw new Error(data.error || "Не удалось выполнить запрос.");
   return data;
+}
+
+function showNotice(text) {
+  if (tg?.showAlert) return tg.showAlert(text);
+  const t = $("toast");
+  t.textContent = text;
+  t.classList.remove("hidden");
+  clearTimeout(showNotice.timer);
+  showNotice.timer = setTimeout(() => t.classList.add("hidden"), 4200);
 }
 
 async function init() {
@@ -231,7 +355,7 @@ async function init() {
 
   state.user = session.user;
   state.botUsername = session.botUsername || null;
-  $("user-name").textContent = state.user.first_name || "Quest";
+  $("user-name").textContent = state.user.first_name || "трейдер";
 
   const daily = await api("/api/daily");
   state.questions = daily.questions;
@@ -261,11 +385,16 @@ async function init() {
   $("next-btn").onclick = nextQuestion;
   $("home-btn").onclick = () => showScreen("home-screen");
   $("claim-btn").onclick = claimReward;
+  $("avatar").onclick = () => avatar.poke();
 
   document.querySelectorAll(".nav-item").forEach(btn => {
     btn.onclick = () => {
       if (btn.id === "stats-nav") {
-        tg?.showAlert?.(`XP: ${state.xp}\nStreak: ${state.streak} days\nToday's score: ${state.score}/${state.total}`);
+        showNotice(
+          `Опыт: ${state.xp} XP\n` +
+          `Серия: ${state.streak} ${plural(state.streak, ["день", "дня", "дней"])} подряд\n` +
+          `Сегодня: ${state.score} из ${state.total}`
+        );
       } else {
         showScreen(btn.dataset.screen);
       }
@@ -285,8 +414,10 @@ function answeredCount() {
 function updateHome() {
   const done = answeredCount();
   $("home-count").textContent = String(state.total).padStart(2, "0");
-  $("home-score").textContent = `${done} / ${state.total} completed`;
+  $("home-score").textContent = `Пройдено ${done} из ${state.total}`;
   $("home-progress").style.width = `${(done / state.total) * 100}%`;
+  $("start-btn").firstChild.textContent =
+    done === 0 ? "НАЧАТЬ КВЕСТ " : done < state.total ? "ПРОДОЛЖИТЬ КВЕСТ " : "СМОТРЕТЬ ИТОГИ ";
 }
 
 function showScreen(id) {
@@ -318,11 +449,11 @@ function renderQuestion() {
   if (!q) return showResult();
 
   const pad = n => String(n).padStart(2, "0");
-  $("quiz-counter").textContent = `${pad(state.current + 1)} / ${pad(state.total)}`;
+  $("quiz-counter").textContent = `ВОПРОС ${pad(state.current + 1)} / ${pad(state.total)}`;
   $("quiz-progress").style.width = `${(state.current / state.total) * 100}%`;
   $("question-category").textContent = q.category.toUpperCase();
   $("question-text").textContent = q.text;
-  avatar.onQuestion(state.current, state.total);
+  avatar.onQuestion(state.current, state.total, q.category);
 
   const options = $("options");
   options.innerHTML = "";
@@ -334,7 +465,7 @@ function renderQuestion() {
   q.options.forEach((text, index) => {
     const btn = document.createElement("button");
     btn.className = "option";
-    btn.textContent = `${String.fromCharCode(65 + index)}  ${text}`;
+    btn.textContent = `${"АБВГДЕ"[index]}  ${text}`;
     btn.onclick = () => answerQuestion(index);
     options.appendChild(btn);
   });
@@ -358,7 +489,7 @@ async function answerQuestion(optionIndex) {
     delete state.answered[q.id];
     document.querySelectorAll(".option").forEach(btn => btn.classList.remove("disabled"));
     avatar.onError();
-    tg?.showAlert?.(err.message || "Something went wrong. Please try again.");
+    showNotice(err.message || "Что-то пошло не так. Попробуй ещё раз.");
     return;
   }
 
@@ -379,7 +510,7 @@ async function answerQuestion(optionIndex) {
 
   $("explanation").textContent = result.explanation;
   $("explanation").classList.add("show");
-  $("next-btn").textContent = state.current === state.total - 1 ? "FINISH QUEST  →" : "CONTINUE  →";
+  $("next-btn").firstChild.textContent = state.current === state.total - 1 ? "ЗАВЕРШИТЬ КВЕСТ " : "ДАЛЕЕ ";
   $("next-dock").classList.remove("hidden");
   // Bring the explanation into view above the docked button.
   $("explanation").scrollIntoView({ behavior: "smooth", block: "center" });
@@ -398,9 +529,9 @@ function showResult() {
   $("result-xp").textContent = `+${state.score * XP_PER_CORRECT}`;
   $("result-streak").textContent = state.streak;
   $("result-title").textContent =
-    state.score === state.total ? "Perfect run." :
-    state.score >= Math.ceil(state.total * 0.6) ? "Solid work." :
-    "Keep building.";
+    state.score === state.total ? "Идеально." :
+    state.score >= Math.ceil(state.total * 0.6) ? "Хорошая работа." :
+    "Есть куда расти.";
 
   const line = avatar.resultLine(state.score, state.total);
   $("result-avatar").dataset.emotion = line.emotion;
@@ -408,7 +539,7 @@ function showResult() {
   $("result-quote").textContent = `«${line.text}»`;
 
   $("result-copy").textContent =
-    `You completed today's Ledger Quest with ${state.score} correct answer${state.score === 1 ? "" : "s"}.`;
+    `Правильных ${plural(state.score, ["ответ", "ответа", "ответов"])}: ${state.score} из ${state.total}.`;
 
   renderReward();
 
@@ -430,7 +561,7 @@ function renderReward() {
   const level = tiers.findIndex(t => t.title === reward.title) + 1;
 
   $("reward-box").dataset.tier = reward.tier || "";
-  $("reward-tier").textContent = reward.tier || "";
+  $("reward-tier").textContent = TIER_LABEL[reward.tier] || reward.tier || "";
   $("reward-tier").classList.toggle("hidden", !reward.tier);
   $("reward-title").textContent = reward.title;
   $("reward-note").textContent = state.rewardClaimed ? "Награда уже забрана." : reward.note || "";
@@ -461,7 +592,7 @@ function renderReward() {
 
 function claimReward() {
   if (!state.botUsername) {
-    tg?.showAlert?.("Could not open Telegram chat. Please try again later.");
+    showNotice("Не удалось открыть чат с ботом. Попробуй чуть позже.");
     return;
   }
 
@@ -479,10 +610,9 @@ function claimReward() {
 
 init().catch(err => {
   console.error(err);
-  document.body.innerHTML = `
-    <div style="color:#fff;font-family:Inter,sans-serif;padding:30px;background:#080b0d;min-height:100vh">
-      <h2>Ledger Quest</h2>
-      <p style="color:#9aa">Could not start the app.</p>
-      <p style="color:#f77;font-size:12px">${err.message}</p>
-    </div>`;
+  const box = document.createElement("div");
+  box.style.cssText = "color:#fff;font-family:Inter,sans-serif;padding:30px;background:#080b0d;min-height:100vh";
+  box.innerHTML = `<h2>Ledger Quest</h2><p style="color:#9aa">Не удалось запустить приложение. Закрой его и открой снова.</p><p style="color:#f77;font-size:12px"></p>`;
+  box.lastElementChild.textContent = err.message;
+  document.body.replaceChildren(box);
 });
