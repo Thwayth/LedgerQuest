@@ -541,6 +541,35 @@ bot.command("stats", async ctx => {
 
 bot.catch(err => console.error("Bot error:", err));
 
+// During a deploy, Render briefly runs the old and new instance together.
+// Both try to long-poll Telegram at once, which makes Telegram answer with
+// a 409 ("another instance is polling") until the old one fully stops.
+// bot.launch() rejects on that, and an unhandled rejection used to crash
+// the whole process — taking the Mini App's web server down with it even
+// though only the bot's polling loop was actually affected. Retry instead.
+async function launchBotWithRetry(maxAttempts = 8, delayMs = 4000) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await bot.launch();
+      console.log("Telegram bot launched.");
+      return;
+    } catch (error) {
+      const isConflict = error?.response?.error_code === 409;
+      console.error(
+        `Telegram bot launch failed (attempt ${attempt}/${maxAttempts})` +
+          (isConflict ? " — another instance is still shutting down, retrying" : "") +
+          ":",
+        error.message
+      );
+      if (attempt === maxAttempts) {
+        console.error("Giving up on launching the Telegram bot for now; the Mini App keeps running without it.");
+        return;
+      }
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
 app.get("*splat", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
@@ -565,7 +594,7 @@ async function main() {
     }
   });
 
-  bot.launch().then(() => console.log("Telegram bot launched."));
+  launchBotWithRetry();
 }
 
 main().catch(error => {
