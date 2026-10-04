@@ -260,10 +260,23 @@
   .result-score{display:none; margin-top:10px; font-family:"Russo One",sans-serif; font-size:20px; color:#fff; text-shadow:0 0 10px var(--cyan);}
   .result-score small{display:block; font-family:"Segoe UI",sans-serif; font-size:11px; color:#9aa4c4; text-shadow:none; margin-top:3px;}
   .result-score .rec{color:var(--gold); font-weight:800; text-shadow:0 0 8px rgba(255,204,51,.7);}
+  /* (stage 3) deposit-bonus panel — filled ONLY from the server's answer */
   .result-reward{
-    display:none; margin:14px auto 0; width:max-content; font-size:12px; padding:6px 14px;
-    border-radius:20px; border:1px solid var(--gold); color:var(--gold);
+    display:none; margin:14px auto 0; max-width:100%; padding:9px 14px; border-radius:14px;
+    border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.04);
+    font-size:12px; color:#c9d2ee; line-height:1.35;
   }
+  .result-reward.show{display:block;}
+  .result-reward .rw-main{font-family:"Russo One","Segoe UI",sans-serif; font-size:20px; color:#6cffb0; text-shadow:0 0 10px rgba(61,255,154,.7);}
+  .result-reward .rw-sub{font-size:11px; color:#9aa4c4; margin-top:2px;}
+  .result-reward.ok{border-color:rgba(61,255,154,.55); background:rgba(61,255,154,.07); box-shadow:0 0 14px rgba(61,255,154,.18);}
+  .result-reward.info{border-color:rgba(255,204,51,.45); color:#ffe39a;}
+  .result-reward.err{border-color:rgba(255,90,120,.55); background:rgba(255,90,120,.07); color:#ffc2cf;}
+  .result-reward.pending{color:#9aa4c4;}
+  .rw-spin{display:inline-block; width:11px; height:11px; margin-right:7px; vertical-align:-1px; border-radius:50%;
+    border:2px solid rgba(255,255,255,.2); border-top-color:var(--cyan); animation:rwSpin .8s linear infinite;}
+  @keyframes rwSpin{to{transform:rotate(360deg);}}
+  .rw-retry{margin-top:7px; padding:5px 14px; border-radius:8px; border:1px solid currentColor; background:none; color:inherit; font-weight:700; font-size:12px; cursor:pointer;}
   .result-btns{display:flex; gap:10px; margin-top:18px;}
   .rbtn{flex:1; padding:11px 0; border-radius:10px; font-weight:700; font-size:13px; cursor:pointer; border:none;}
   .rbtn.primary{background:linear-gradient(135deg,var(--cyan),var(--violet)); color:#09111c;}
@@ -339,7 +352,7 @@
           <div class="result-stars" id="result-stars"><span>★</span><span>★</span><span>★</span></div>
           <div class="result-sub" id="result-sub">Уровень пройден.</div>
           <div class="result-score" id="result-score"></div>
-          <div class="result-reward" id="result-reward">+0.3% к пополнению</div>
+          <div class="result-reward" id="result-reward" aria-live="polite"></div>
           <div class="result-btns">
             <button class="rbtn ghost" id="retry-btn">Заново</button>
             <button class="rbtn primary" id="next-btn">Дальше</button>
@@ -352,6 +365,8 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/planck@1/dist/planck.min.js"></script>
+<!-- (stage 3) server API client — the deposit bonus is computed ONLY by the server -->
+<script src="api.js"></script>
 <script>
 /* ======================================================================
    SIZES (meters)
@@ -1307,8 +1322,10 @@ function loadProfileCache(){
   return { bonusPct: 0 };
 }
 function telegramUser(){
-  try{ return (window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user) || null; }
-  catch(e){ return null; }
+  try{
+    const tw = window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user;
+    return tw || (window.LQApi && LQApi.unsafeUser()) || null;
+  }catch(e){ return null; }
 }
 
 /* ======================================================================
@@ -1345,9 +1362,32 @@ function drawThumbInto(cardCanvas, i){
   cardCanvas.classList.add("ready");
 }
 
-function renderLevelSelect(){
+// (stage 3) pull the server's view (bonus + best stars) once per menu visit.
+let profileSyncInFlight = false;
+function syncProfileFromServer(){
+  const api = window.LQApi;
+  if (!api || !api.hasTelegram() || profileSyncInFlight) return;
+  profileSyncInFlight = true;
+  api.getProfile().then(p => {
+    saveServerBonus(p.bonusTotalPct);
+    let changed = false;
+    for (const [k, v] of Object.entries(p.levels || {})){
+      const i = Number(k);
+      if (!(i >= 0 && i < LEVELS.length)) continue;
+      const lp = levelProgress(i);
+      const s = Math.max(0, Math.min(3, v.bestStars|0));
+      if (s > lp.stars){ progress.levels[i] = { stars:s, best: Math.max(lp.best, v.bestScore|0) }; changed = true; }
+    }
+    if (changed) saveProgress();
+    if (levelsWrap.classList.contains("active")){ if (changed) renderLevelSelect(true); else renderProfile(); }
+  }).catch(e => console.warn("[api] profile failed:", e.kind, e.code || ""))
+    .finally(() => { profileSyncInFlight = false; });
+}
+
+function renderLevelSelect(fromSync){
   progress = loadProgress();
   renderProfile();
+  if (!fromSync) setTimeout(syncProfileFromServer, 0);
   levelSections.innerHTML = "";
   let cardIdx = 0;
   TIER_ORDER.forEach((tier, si) => {
@@ -1521,9 +1561,26 @@ function showScreen(name){
   else if (name === "game") gameWrap.classList.add("active");
 }
 
+/* ---- (stage 3) server run per attempt. Each loadLevel() (including
+   restart) opens a fresh server-side run; the win report must reference it.
+   `activeRun` guards against a late answer from a previous attempt
+   touching the current screen. ---- */
+const API = window.LQApi || null;
+let activeRun = null;
+function beginRun(i){
+  const run = { levelId:i, runId:null, startError:null, start:null };
+  if (API && API.hasTelegram()){
+    run.start = API.startLevel(i)
+      .then(r => { run.runId = r && r.runId || null; })
+      .catch(e => { run.startError = e; console.warn("[api] level-start failed:", e.kind, e.code || ""); });
+  }
+  activeRun = run;
+}
+
 function loadLevel(i){
   console.log("loadLevel", i);
   currentLevelIndex = i;
+  beginRun(i);
   showScreen("game");
   updateGameLabel(i);
   resultOverlay.classList.remove("show");
@@ -1594,6 +1651,72 @@ function onHint(text, visible){
   hintToast.style.opacity = visible ? "1" : "0";
 }
 
+/* ---- (stage 3) deposit-bonus panel on the win screen ---- */
+function showReward(kind, html){
+  resultReward.className = "result-reward" + (kind ? " show " + kind : "");
+  resultReward.innerHTML = html || "";
+}
+function pct(v){ return (Math.round(Number(v)*100)/100).toFixed(2) + "%"; }
+function saveServerBonus(totalPct){
+  try{ localStorage.setItem(PROFILE_KEY, JSON.stringify({ bonusPct: Number(totalPct) || 0, at: Date.now() })); }catch(e){}
+}
+const REJECT_TEXT = {
+  run_not_found: "Сессия уровня истекла. Переиграй уровень, чтобы получить бонус.",
+  run_expired:   "Сессия уровня истекла. Переиграй уровень, чтобы получить бонус.",
+  level_locked:  "Этот уровень ещё не открыт на сервере. Пройди предыдущий уровень в Telegram.",
+  config_mismatch: "Версия игры устарела. Перезапусти игру.",
+};
+function rewardErrorText(e){
+  switch (e && e.kind){
+    case "no-telegram":  return { cls:"info", text:"Бонус к депозиту начисляется только при игре в Telegram." };
+    case "unauthorized": return { cls:"err", text:"Сессия Telegram устарела. Закрой и открой игру заново, затем переиграй уровень." };
+    case "rate-limited": return { cls:"err", text:"Слишком много попыток. Подожди пару минут.", retry:true };
+    case "rejected":     return { cls:"err", text: REJECT_TEXT[e.code] || "Сервер не принял результат. Бонус не начислен." };
+    case "offline":
+    case "timeout":      return { cls:"err", text:"Нет связи с сервером. Бонус пока не начислен.", retry:true };
+    default:             return { cls:"err", text:"Ошибка сервера. Бонус пока не начислен.", retry:true };
+  }
+}
+function reportWin(run, facts){
+  if (!API){ showReward("err", "Модуль API не загрузился. Бонус не начислен."); return; }
+  if (!API.hasTelegram()){ showReward("info", rewardErrorText({kind:"no-telegram"}).text); return; }
+  showReward("pending", '<span class="rw-spin"></span>Начисляем бонус…');
+  const onScreen = () => activeRun === run && resultOverlay.classList.contains("show");
+  Promise.resolve(run && run.start).then(() => {
+    if (!run || !run.runId){
+      // level-start never reached the server: there is no run to report against,
+      // and retrying now would fail the server's minimum-time check anyway.
+      const e = run && run.startError;
+      if (e && e.kind !== "offline" && e.kind !== "timeout") throw e;
+      throw Object.assign(new Error("no run"), { kind:"no-run" });
+    }
+    return API.completeLevel(Object.assign({ runId: run.runId }, facts));
+  }).then(r => {
+    saveServerBonus(r.bonusTotalPct);   // the server's number, as-is
+    if (!onScreen()) return;
+    const total = `Всего ${pct(r.bonusTotalPct)} из ${Number(r.maxBonusPct).toFixed(1)}%`;
+    if (r.bonusAddedPct > 0){
+      showReward("ok", `<div class="rw-main">+${pct(r.bonusAddedPct)} к депозиту</div><div class="rw-sub">${total}${r.capped ? " · достигнут максимум" : ""}</div>`);
+    } else if (r.capped || r.bonusTotalPct >= r.maxBonusPct){
+      showReward("info", `Бонус уже на максимуме.<div class="rw-sub">${total}</div>`);
+    } else {
+      showReward("info", `Бонус за ${r.bestStars}★ на этом уровне уже получен. Больше звёзд — больше бонус.<div class="rw-sub">${total}</div>`);
+    }
+  }).catch(e => {
+    console.warn("[api] level-complete failed:", e && e.kind, e && e.code || "");
+    if (!onScreen()) return;
+    if (e && e.kind === "no-run"){
+      showReward("err", "Не удалось связаться с сервером в начале уровня. Бонус не начислен — переиграй уровень с интернетом.");
+      return;
+    }
+    const t = rewardErrorText(e);
+    showReward(t.cls, t.text + (t.retry ? '<div><button class="rw-retry" type="button">Повторить</button></div>' : ""));
+    const btn = resultReward.querySelector(".rw-retry");
+    // safe to repeat: the server answers a repeated runId with the stored result
+    if (btn) btn.addEventListener("click", () => reportWin(run, facts), { once:true });
+  });
+}
+
 // stats = { score } from the scene (blocks + coins collected so far).
 function onSettle(cleared, total, chargesLeft, stats){
   const i = currentLevelIndex;
@@ -1616,8 +1739,8 @@ function onSettle(cleared, total, chargesLeft, stats){
     resultScore.style.display = "block";
     resultScore.innerHTML = `${fmtScore(score)}<small>${newRecord ? '<span class="rec">Новый рекорд!</span>' : `Рекорд ${fmtScore(prev.best)}`}`
       + (chargesLeft > 0 ? ` · бонус за снаряды +${fmtScore(chargesLeft*UNUSED_SHOT_BONUS)}` : "") + `</small>`;
-    // stage 3: "+X% к депозиту" appears here ONLY after the server confirms it
-    resultReward.style.display = "none";
+    // stage 3: "+X% к депозиту" appears ONLY after the server's answer
+    reportWin(activeRun, { levelId:i, shotsUsed: lvl.charges - chargesLeft, coinsCollected: cleared, score });
     nextBtn.textContent = i < LEVELS.length-1 ? "Дальше" : "В меню";
     retryBtn.style.display = "block";
     resultOverlay.classList.add("show");
@@ -1628,7 +1751,7 @@ function onSettle(cleared, total, chargesLeft, stats){
     resultStars.classList.remove("show");
     resultSub.textContent = `Собрано монет: ${cleared} из ${total}. Попробуй ещё раз.`;
     resultScore.style.display = "none";
-    resultReward.style.display = "none";
+    showReward(null);
     nextBtn.textContent = "Заново";
     retryBtn.style.display = "none";
     resultOverlay.classList.add("show");

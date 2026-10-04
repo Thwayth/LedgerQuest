@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "test:arena": "node --test tests/arena-server.test.js",
+    "arena": "node server-example.js"
   },
   "dependencies": {
     "dotenv": "^18.0.4",
