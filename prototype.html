@@ -282,6 +282,64 @@
   .rbtn.primary{background:linear-gradient(135deg,var(--cyan),var(--violet)); color:#09111c;}
   .rbtn.ghost{background:transparent; border:1px solid rgba(255,255,255,.25); color:#eaf6ff;}
 
+  /* ---------- (info) "how it works" entry points + sheet ---------- */
+  .how-btn{
+    display:flex; align-items:center; justify-content:center; gap:8px; width:100%; margin:8px 0 2px;
+    padding:10px 12px; border-radius:12px; cursor:pointer;
+    font:700 13px "Segoe UI",Roboto,system-ui,sans-serif; color:#e9dcff;
+    background:rgba(179,136,255,.10); border:1px dashed rgba(179,136,255,.6);
+    animation:cardIn .5s .12s ease-out both;
+  }
+  .how-btn svg{width:16px; height:16px; flex:none; color:var(--violet); filter:drop-shadow(0 0 4px var(--violet));}
+  .how-btn:active{transform:scale(.98);}
+  .profile{cursor:pointer;}
+  .rw-link{margin-top:6px; padding:0; border:none; background:none; color:var(--cyan); font-size:11.5px; font-weight:700; text-decoration:underline; text-underline-offset:2px; cursor:pointer;}
+  button:focus-visible,.lv-card:focus-visible{outline:2px solid var(--cyan); outline-offset:2px;}
+
+  #info-sheet{
+    position:absolute; inset:0; z-index:40; display:flex; align-items:flex-end;
+    background:rgba(5,3,14,.72); backdrop-filter:blur(3px);
+  }
+  #info-sheet[hidden]{display:none;}
+  .is-panel{
+    outline:none; position:relative; width:100%; max-height:92%; display:flex; flex-direction:column;
+    background:linear-gradient(170deg,#1d1036,#0b0620 60%);
+    border:1px solid rgba(179,136,255,.5); border-bottom:none; border-radius:20px 20px 0 0;
+    box-shadow:0 -10px 40px rgba(179,136,255,.25);
+    animation:sheetUp .32s cubic-bezier(.2,.9,.3,1) both;
+  }
+  @keyframes sheetUp{from{transform:translateY(40px); opacity:0;} to{transform:none; opacity:1;}}
+  .is-head{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:16px 16px 10px; border-bottom:1px solid rgba(255,255,255,.07);}
+  .is-title{font-family:"Russo One","Segoe UI",sans-serif; font-size:18px; letter-spacing:1px; color:#fff; text-shadow:0 0 10px var(--violet);}
+  .is-close{width:34px; height:34px; flex:none; border-radius:50%; border:1px solid rgba(255,255,255,.2); background:rgba(255,255,255,.05); color:#eaf6ff; cursor:pointer; display:flex; align-items:center; justify-content:center;}
+  .is-close svg{width:16px; height:16px;}
+  .is-body{flex:1; min-height:0; overflow-y:auto; padding:6px 16px 8px; touch-action:pan-y; -webkit-overflow-scrolling:touch; font-size:13px; line-height:1.5; color:#d6dcf2;}
+  .is-foot{padding:10px 16px 14px; border-top:1px solid rgba(255,255,255,.07);}
+  .is-foot .rbtn{width:100%; padding:12px 0; font-size:14px;}
+  .is-hero{margin:8px 0 4px; padding:12px; border-radius:14px; background:rgba(34,230,255,.06); border:1px solid rgba(34,230,255,.25);}
+  .is-hero b{display:block; font-family:"Russo One","Segoe UI",sans-serif; font-weight:400; font-size:15px; color:#fff; margin-bottom:4px; text-wrap:balance;}
+  .is-sec{margin-top:16px;}
+  .is-h{font-family:"Russo One","Segoe UI",sans-serif; font-size:13px; letter-spacing:1.5px; color:var(--cyan); text-transform:uppercase; margin-bottom:8px;}
+  .is-steps{list-style:none; margin:0; padding:0; display:grid; gap:8px;}
+  .is-steps li{display:grid; grid-template-columns:24px 1fr; gap:10px; align-items:start;}
+  .is-steps li > span{width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font:700 12px "Segoe UI",sans-serif; color:#0b0620; background:var(--cyan); box-shadow:0 0 8px var(--cyan);}
+  .is-note{margin-top:8px; font-size:12px; color:#9aa4c4;}
+  .is-stars{display:grid; gap:6px;}
+  .is-stars div{display:flex; align-items:center; gap:10px;}
+  .is-stars i{font-style:normal; flex:none; width:58px; letter-spacing:2px; color:rgba(255,255,255,.18);}
+  .is-stars i b{color:var(--gold); text-shadow:0 0 6px rgba(255,204,51,.8);}
+  .is-table{width:100%; border-collapse:collapse; font-size:12.5px; font-variant-numeric:tabular-nums;}
+  .is-table th{font-weight:600; font-size:11px; color:#9aa4c4; text-align:right; padding:0 0 6px;}
+  .is-table th:first-child,.is-table td:first-child{text-align:left;}
+  .is-table td{padding:7px 0; text-align:right; border-top:1px solid rgba(255,255,255,.07); color:#eaf6ff;}
+  .is-table td:first-child{font-weight:700; color:var(--sec);}
+  .is-table tr.total td{color:#fff; font-weight:700;}
+  .is-me{margin-top:10px; padding:10px 12px; border-radius:12px; border:1px solid rgba(61,255,154,.4); background:rgba(61,255,154,.06);}
+  .is-me .pf-bar{margin-top:6px;}
+  .is-example{margin-top:8px; padding:10px 12px; border-radius:12px; background:rgba(255,204,51,.07); border:1px solid rgba(255,204,51,.35); color:#ffe9b0;}
+  .is-example b{color:#fff;}
+  @media (prefers-reduced-motion: reduce){ .is-panel,.how-btn{animation:none !important;} }
+
   .fps-counter{
     position:absolute; top:4px; left:4px; z-index:20; font:700 11px monospace;
     color:#6cff9a; background:rgba(0,0,0,.5); padding:2px 6px; border-radius:4px;
@@ -316,6 +374,10 @@
             <div class="pf-bar"><div id="pf-bar"></div></div>
           </div>
         </div>
+        <button class="how-btn" id="how-btn" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M12 11v6"/><circle cx="12" cy="7.6" r=".6" fill="currentColor"/></svg>
+          Как играть и что за бонус
+        </button>
         <div id="level-sections"></div>
       </div>
     </div>
@@ -358,6 +420,19 @@
             <button class="rbtn primary" id="next-btn">Дальше</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div id="info-sheet" role="dialog" aria-modal="true" aria-labelledby="info-title" hidden>
+      <div class="is-panel" id="info-panel" tabindex="-1">
+        <div class="is-head">
+          <div class="is-title" id="info-title">Как это работает</div>
+          <button class="is-close" id="info-close" type="button" aria-label="Закрыть">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <div class="is-body" id="info-body"></div>
+        <div class="is-foot"><button class="rbtn primary" id="info-ok" type="button">Понятно, играть</button></div>
       </div>
     </div>
 
@@ -1654,8 +1729,10 @@ function onHint(text, visible){
 /* ---- (stage 3) deposit-bonus panel on the win screen ---- */
 function showReward(kind, html){
   resultReward.className = "result-reward" + (kind ? " show " + kind : "");
-  resultReward.innerHTML = html || "";
+  const link = (kind === "ok" || kind === "info") ? '<div><button class="rw-link" type="button" data-info="bonus">Что это за бонус?</button></div>' : "";
+  resultReward.innerHTML = (html || "") + link;
 }
+resultReward.addEventListener("click", (e) => { if (e.target.closest("[data-info]")) openInfo("bonus"); });
 function pct(v){ return (Math.round(Number(v)*100)/100).toFixed(2) + "%"; }
 function saveServerBonus(totalPct){
   try{ localStorage.setItem(PROFILE_KEY, JSON.stringify({ bonusPct: Number(totalPct) || 0, at: Date.now() })); }catch(e){}
@@ -1716,6 +1793,117 @@ function reportWin(run, facts){
     if (btn) btn.addEventListener("click", () => reportWin(run, facts), { once:true });
   });
 }
+
+/* ======================================================================
+   "КАК ЭТО РАБОТАЕТ" SHEET — explains the mode and the deposit bonus.
+   Opened from: the menu button, a tap on the profile plate, the win
+   screen's "Что это за бонус?" link, and automatically on first launch.
+   The rate table is built from the same REWARDS/MAX_BONUS/DIFFICULTY
+   constants as the menu badges (display only — the server is the one that
+   actually credits, see server-example.js). BONUS_TERMS is the business
+   wording of how the accumulated % is applied to a deposit.
+   ====================================================================== */
+// TODO(business): confirm how/when the bonus is applied (which deposits,
+// currency, expiry) and edit these lines — they are the only place it's described.
+const BONUS_TERMS = {
+  what: "Бонус — это дополнительный процент к сумме пополнения депозита в Ledger. Накопленный в игре процент добавляется сверху, когда ты пополняешь депозит.",
+  exampleDeposit: 1000, exampleBonusPct: 2, currency: "$",
+};
+const INTRO_KEY = "lq_arena_intro_seen_v1";
+const infoSheet = document.getElementById("info-sheet");
+const infoBody = document.getElementById("info-body");
+let infoReturnFocus = null;
+
+function renderInfoSheet(){
+  const tierRows = TIER_ORDER.map(t => {
+    const d = DIFFICULTY[t], n = LEVEL_TIERS.filter(x => x === t).length;
+    return `<tr style="--sec:${d.color}"><td>${d.label[0] + d.label.slice(1).toLowerCase()}</td><td>${n}</td><td>+${REWARDS[t].toFixed(2)}%</td><td>+${(REWARDS[t]*3).toFixed(2)}%</td></tr>`;
+  }).join("");
+  const allStarsPct = LEVEL_TIERS.reduce((sum, t) => sum + REWARDS[t]*3, 0);
+  const me = Math.min(MAX_BONUS, Math.max(0, loadProfileCache().bonusPct));
+  const ex = BONUS_TERMS, exGain = ex.exampleDeposit * ex.exampleBonusPct / 100;
+  const money = v => ex.currency + fmtScore(v);
+  infoBody.innerHTML = `
+    <div class="is-hero">
+      <b>Сбивай неоновые башни и собирай криптомонеты</b>
+      Аркада внутри Ledger Quest: ${LEVELS.length} уровней, звёзды за меткость и бонус к депозиту до ${MAX_BONUS.toFixed(1)}%.
+    </div>
+
+    <div class="is-sec" id="info-play">
+      <div class="is-h">Как играть</div>
+      <ol class="is-steps">
+        <li><span>1</span><div>Потяни снаряд в рогатке назад. Пунктир покажет, куда он полетит.</div></li>
+        <li><span>2</span><div>Отпусти — снаряд разобьёт блоки. Стекло ломается легко, металл крепче, бетон — самый прочный.</div></li>
+        <li><span>3</span><div>Собери все монеты на уровне, пока не кончились снаряды. Сколько их — видно на карточке уровня (🎯).</div></li>
+      </ol>
+      <div class="is-note">Двумя пальцами — приблизить или отдалить. Свайп по пустому месту — осмотреть уровень.</div>
+    </div>
+
+    <div class="is-sec" id="info-stars">
+      <div class="is-h">Звёзды</div>
+      <div class="is-stars">
+        <div><i><b>★</b>★★</i>Уровень пройден</div>
+        <div><i><b>★★</b>★</i>Пройден, и 1 снаряд остался в запасе</div>
+        <div><i><b>★★★</b></i>Пройден, и 2+ снаряда остались в запасе</div>
+      </div>
+      <div class="is-note">Следующий уровень открывается после прохождения предыдущего. Уровень можно перепроходить, чтобы улучшить результат.</div>
+    </div>
+
+    <div class="is-sec" id="info-bonus">
+      <div class="is-h">Бонус к депозиту</div>
+      <div>Каждая звезда прибавляет процент к твоему бонусу. Чем сложнее уровень, тем дороже звезда.</div>
+      <table class="is-table" style="margin-top:10px">
+        <thead><tr><th>Сложность</th><th>Уровней</th><th>За ★</th><th>За 3★</th></tr></thead>
+        <tbody>${tierRows}
+          <tr class="total"><td>Максимум</td><td>${LEVELS.length}</td><td></td><td>${MAX_BONUS.toFixed(2)}%</td></tr>
+        </tbody>
+      </table>
+      <div class="is-note">Все ${LEVELS.length*3} звёзды дали бы ${allStarsPct.toFixed(1)}%, но бонус ограничен ${MAX_BONUS.toFixed(1)}%. Бонус платится только за новые звёзды: улучшил уровень с 2★ до 3★ — получаешь ещё одну звезду, повторил тот же результат — бонус не растёт.</div>
+      <div class="is-me">
+        Твой бонус сейчас: <b style="color:#6cffb0">+${me.toFixed(2)}%</b> из ${MAX_BONUS.toFixed(1)}%
+        <div class="pf-bar"><div style="width:${(100*me/MAX_BONUS).toFixed(1)}%"></div></div>
+      </div>
+    </div>
+
+    <div class="is-sec" id="info-terms">
+      <div class="is-h">Как применяется бонус</div>
+      <div>${ex.what}</div>
+      <div class="is-example">Пример: бонус <b>${ex.exampleBonusPct}%</b> и пополнение на <b>${money(ex.exampleDeposit)}</b> → сверху <b>+${money(exGain)}</b>.</div>
+    </div>
+
+    <div class="is-sec" id="info-fair">
+      <div class="is-h">Честная игра</div>
+      <div>Бонус считает и начисляет сервер Ledger Quest, а не приложение на телефоне. Он засчитывается только при игре в Telegram. Сервер проверяет каждый результат: слишком быстрые или невозможные прохождения не засчитываются.</div>
+    </div>`;
+}
+
+function openInfo(section){
+  renderInfoSheet();
+  infoReturnFocus = document.activeElement;
+  infoSheet.hidden = false;
+  const target = section && document.getElementById("info-" + section);
+  infoBody.scrollTop = target ? Math.max(0, target.offsetTop - infoBody.offsetTop - 6) : 0;
+  // focus the dialog itself (not the close button) so no focus ring flashes on open
+  document.getElementById("info-panel").focus({ preventScroll:true });
+}
+function closeInfo(){
+  if (infoSheet.hidden) return;
+  infoSheet.hidden = true;
+  try{ localStorage.setItem(INTRO_KEY, "1"); }catch(e){}
+  if (infoReturnFocus && infoReturnFocus.focus) infoReturnFocus.focus({ preventScroll:true });
+}
+document.getElementById("info-close").addEventListener("click", closeInfo);
+document.getElementById("info-ok").addEventListener("click", closeInfo);
+infoSheet.addEventListener("click", (e) => { if (e.target === infoSheet) closeInfo(); });
+window.addEventListener("keydown", (e) => { if (e.key === "Escape") closeInfo(); });
+document.getElementById("how-btn").addEventListener("click", () => openInfo());
+document.getElementById("profile").addEventListener("click", () => openInfo("bonus"));
+// first launch: show the explainer once, after the menu has animated in
+(function(){
+  let seen = false;
+  try{ seen = localStorage.getItem(INTRO_KEY) === "1"; }catch(e){}
+  if (!seen) setTimeout(() => { if (levelsWrap.classList.contains("active")) openInfo(); }, 900);
+})();
 
 // stats = { score } from the scene (blocks + coins collected so far).
 function onSettle(cleared, total, chargesLeft, stats){
