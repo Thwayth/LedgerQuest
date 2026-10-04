@@ -462,11 +462,12 @@ const BASE_BOTTOM_W_M = 2.4, BASE_MID_W_M = 2.0, BASE_TOP_W_M = 1.6, BASE_H_M = 
 const BAND_THICK_M = 0.12;
 
 const MATERIALS = {
-  // hp raised 2026-10-04 (balance): a direct hit used to one-shot even
-  // concrete; now concrete takes ~2 direct hits, metal 1-2, glass 1.
-  glass:    { density:0.6, friction:0.70, restitution:0, hp:40,  glow:"#22e6ff", glass:true },
-  metal:    { density:1.5, friction:0.80, restitution:0, hp:220, glow:"#22e6ff" },
-  concrete: { density:3.0, friction:0.90, restitution:0, hp:650, glow:"#ff2bd6" },
+  // hp unchanged by the 2026-10-04 balance pass: once resting contact
+  // stopped counting as damage (see IMPACT_MIN_SPEED), these values give
+  // few one-shot clears while every level stays winnable (balance sweep).
+  glass:    { density:0.6, friction:0.70, restitution:0, hp:30,  glow:"#22e6ff", glass:true },
+  metal:    { density:1.5, friction:0.80, restitution:0, hp:120, glow:"#22e6ff" },
+  concrete: { density:3.0, friction:0.90, restitution:0, hp:300, glow:"#ff2bd6" },
 };
 const NETWORKS = {
   bitcoin:  { color:"#ffb02a" },
@@ -2676,14 +2677,30 @@ function createScene(levelDef, hooks, opts){
       for (let f = r.body.getFixtureList(); f; f = f.getNext()){
         const bb = f.getAABB(0);
         const overlapX = Math.min(bb.upperBound.x, cp.x + COIN_R*0.8) - Math.max(bb.lowerBound.x, cp.x - COIN_R*0.8);
-        if (overlapX > 0.05 && Math.abs(bb.upperBound.y - bottom) <= 0.35){
+        const isFloor = overlapX > 0.05 && Math.abs(bb.upperBound.y - bottom) <= 0.35;
+        // NICHE WALLS/LID: any block whose box reaches into the coin's
+        // circle encloses it — breaking or shifting that wall spills the
+        // coin out too (a coin sealed in a niche used to be untakeable)
+        const nx = Math.max(bb.lowerBound.x, Math.min(cp.x, bb.upperBound.x));
+        const ny = Math.max(bb.lowerBound.y, Math.min(cp.y, bb.upperBound.y));
+        const isWall = Math.hypot(cp.x - nx, cp.y - ny) < COIN_R + 0.25;
+        if (isFloor || isWall){
           const p = r.body.getPosition();
-          c.supports.push({ rec:r, x:p.x, y:p.y, a:r.body.getAngle() });
+          c.supports.push({ rec:r, x:p.x, y:p.y, a:r.body.getAngle(), wall: !isFloor });
           break;
         }
       }
     }
-    console.log('[coin] supports', c.id, c.key, c.supports.map(s => '#'+s.rec.id+' '+s.rec.mat+' '+s.rec.shape).join(', ') || '(none: ground/terrain)');
+    // walls only count for a real niche: the coin must be boxed in on BOTH
+    // sides. A single neighbouring column (level 5's balconies) is not a
+    // niche and must not spill the coin when it is merely bumped.
+    {
+      const walls = c.supports.filter(s => s.wall);
+      const left = walls.some(s => s.rec.body.getPosition().x < cp.x - 0.3);
+      const right = walls.some(s => s.rec.body.getPosition().x > cp.x + 0.3);
+      if (!(left && right)) c.supports = c.supports.filter(s => !s.wall);
+    }
+    console.log('[coin] supports', c.id, c.key, c.supports.map(s => '#'+s.rec.id+' '+s.rec.mat+' '+s.rec.shape+(s.wall?' (wall)':'')).join(', ') || '(none: ground/terrain)');
   }
   pendingCoinCollect = []; pendingCoinSpeedKill = []; pendingCoinHit = [];
 
@@ -2707,7 +2724,7 @@ function createScene(levelDef, hooks, opts){
   }
   spawnAmmo();
 
-  const DAMAGE_MULT = 12;
+  const DAMAGE_MULT = 16;
 
   const IMPULSE_THRESHOLD = 1.5;
   const IMPACT_MIN_SPEED = 1.2;  // m/s closing speed — below this a contact is resting, not a hit
