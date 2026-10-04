@@ -407,8 +407,32 @@ async function init() {
   $("top-pill").onkeydown = e => { if (e.key === "Enter" || e.key === " ") openScreen("profile-screen"); };
 }
 
+// ---------- Arena tab ----------
+// The arena mini-game (public/arena/) runs in a same-origin frame, loaded
+// on first open and kept alive while switching tabs, so a level in
+// progress isn't lost. It reads the signed initData from this window
+// (window.parent.Telegram.WebApp) for its own /api/game/* calls; the hash
+// copy below covers clients where that lookup isn't available.
+let arenaFrame = null;
+function openArena() {
+  if (!arenaFrame) {
+    arenaFrame = document.createElement("iframe");
+    arenaFrame.title = "Ledger Quest Arena";
+    arenaFrame.allow = "fullscreen";
+    arenaFrame.src = "/arena/" + (tg?.initData ? "#tgWebAppData=" + encodeURIComponent(tg.initData) : "");
+    // the loader sits UNDER the frame (z-index) so it can never block taps;
+    // it's removed on load, or after a few seconds whatever happens
+    const hideLoader = () => $("arena-loading").classList.add("hidden");
+    arenaFrame.addEventListener("load", hideLoader, { once: true });
+    setTimeout(hideLoader, 6000);
+    $("arena-wrap").appendChild(arenaFrame);
+  }
+  showScreen("arena-screen");
+}
+
 function openScreen(id) {
   if (id === "profile-screen") openProfile();
+  else if (id === "arena-screen") openArena();
   else showScreen(id);
 }
 
@@ -435,6 +459,7 @@ function showScreen(id) {
   document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
   $(id).classList.add("active");
   document.body.classList.toggle("quiz-mode", id === "quiz-screen");
+  document.body.classList.toggle("arena-mode", id === "arena-screen");
   if (id !== "quiz-screen") $("next-dock").classList.add("hidden");
   document.querySelectorAll(".nav-item").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.screen === id);

@@ -13,13 +13,13 @@
      5. stores the answer per run, so a retried request returns the same
         result instead of crediting twice.
 
-   Use it two ways:
-     - mount in the existing server.js:
-         import { createArenaRouter } from "./server-example.js";
-         app.use("/api/game", createArenaRouter({ botToken: BOT_TOKEN }));
-     - or run standalone for local testing:
-         BOT_TOKEN=123:abc node server-example.js
-       (serves the game at http://localhost:3000/arena)
+   Used two ways:
+     - mounted by server.js (production):
+         app.use("/api/game", createArenaRouter({ botToken, store: createArenaStore(store) }));
+       the game itself is static: public/arena/ -> /arena/
+     - or standalone for local testing (in-memory store):
+         BOT_TOKEN=123:abc node arena-api.js
+       (serves the game at http://localhost:3000/arena/)
 
    What this does NOT protect against: the physics runs on the player's
    device, so a modified client can still report a clean 3-star win with
@@ -99,6 +99,46 @@ export function verifyInitData(initData, botToken, maxAgeSec = 86400, nowMs = Da
     const user = JSON.parse(params.get("user") || "null");
     return user && (typeof user.id === "number" || typeof user.id === "string") ? user : null;
   } catch { return null; }
+}
+
+/* ---------- Postgres storage ----------
+   One row per player, the whole record as JSONB (+ bonus_bp as a column
+   so the bonus is easy to query/report). Reuses the main app's pg pool.
+   TODO(scale): with more than one server instance, replace the in-process
+   withPlayerLock by SELECT ... FOR UPDATE inside a transaction. */
+export class PostgresArenaStore {
+  constructor(pool) { this.pool = pool; this.ready = null; }
+  init() {
+    if (!this.ready) {
+      this.ready = this.pool.query(`
+        CREATE TABLE IF NOT EXISTS lq_arena_players (
+          id         TEXT PRIMARY KEY,
+          bonus_bp   INTEGER NOT NULL DEFAULT 0,
+          data       JSONB NOT NULL,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`).catch(e => { this.ready = null; throw e; });
+    }
+    return this.ready;
+  }
+  async getPlayer(id) {
+    await this.init();
+    const { rows } = await this.pool.query("SELECT data FROM lq_arena_players WHERE id = $1", [id]);
+    const base = { id, bonusBp: 0, levels: {}, runs: {}, completes: [] };
+    return rows.length ? { ...base, ...rows[0].data, id } : base;
+  }
+  async savePlayer(p) {
+    await this.init();
+    await this.pool.query(
+      `INSERT INTO lq_arena_players (id, bonus_bp, data, updated_at) VALUES ($1, $2, $3, NOW())
+       ON CONFLICT (id) DO UPDATE SET bonus_bp = EXCLUDED.bonus_bp, data = EXCLUDED.data, updated_at = NOW()`,
+      [p.id, p.bonusBp | 0, JSON.stringify(p)]
+    );
+  }
+}
+
+// Postgres when the main store has a pg pool (DATABASE_URL set), else memory.
+export function createArenaStore(mainStore) {
+  return mainStore && mainStore.pool ? new PostgresArenaStore(mainStore.pool) : new MemoryArenaStore();
 }
 
 /* ---------- storage ----------
@@ -268,9 +308,8 @@ if (isMain) {
   const dir = path.dirname(fileURLToPath(import.meta.url));
   const app = express();
   app.use("/api/game", createArenaRouter({ botToken }));
-  // Only these two files are served, never the whole directory (.env lives here).
-  app.get("/arena", (req, res) => res.sendFile(path.join(dir, "prototype.html")));
-  app.get("/api.js", (req, res) => res.sendFile(path.join(dir, "api.js")));
+  // Only the game's own folder is served, never the repo root (.env lives there).
+  app.use("/arena", express.static(path.join(dir, "public", "arena")));
   const port = Number(process.env.PORT || 3000);
-  app.listen(port, () => console.log(`[arena] http://localhost:${port}/arena`));
+  app.listen(port, () => console.log(`[arena] http://localhost:${port}/arena/`));
 }

@@ -8,6 +8,7 @@ Telegram Mini App MVP with:
 - Ledger Bot character
 - Telegram menu button
 - Demo mode in a normal browser
+- **Arena** tab: Angry-Birds-style mini-game with a server-side deposit bonus
 
 ## 1. Create the bot
 Open @BotFather in Telegram:
@@ -143,6 +144,28 @@ To give the host real facial expressions, add square portraits (same framing,
 ~720×720) to `public/assets/avatar/<emotion>.jpg`, e.g. `happy.jpg`, `sad.jpg`.
 Any file that exists is picked up automatically; missing ones fall back to the default.
 Remarks are in `LINES` in `public/app.js`.
+
+## Arena (mini-game tab)
+The **АРЕНА** tab in the bottom nav opens the arena mini-game: 8 levels in
+4 difficulty tiers, knock down neon towers with a slingshot and collect the
+crypto coins. Stars per level, and each star adds a deposit bonus.
+
+- Game: `public/arena/index.html` (single file, Planck.js from the CDN) and
+  `public/arena/api.js`; served at `/arena/` and loaded into the tab in a frame.
+- Server: `arena-api.js`, mounted by `server.js` at `/api/game/*`
+  (`level-start`, `level-complete`, `profile`).
+- The bonus is computed **only on the server**: it verifies the Telegram
+  `initData` signature, checks the result is plausible (single-use run,
+  minimum time, shot/coin counts, level unlocked, rate limit), works out the
+  stars itself and credits only new stars: easy 0.1% / medium 0.2% /
+  hard 0.35% / expert 0.5% per star, capped at 5.0% in total.
+- Storage: table `lq_arena_players` in the same `DATABASE_URL` database
+  (created automatically); in memory without it.
+- Outside Telegram (demo mode) the game is playable, but no bonus is credited.
+- How the bonus is applied to a deposit is described to players in the game
+  (`BONUS_TERMS` in `public/arena/index.html`) — confirm that wording.
+- Tests: `npm run test:arena`. Standalone dev server for the game only:
+  `BOT_TOKEN=123:abc npm run arena` → http://localhost:3000/arena/
 
 ## Next version
 - admin panel

@@ -174,8 +174,17 @@
       </div>
     </section>
 
+    <!-- Arena mini-game tab: the game lives in public/arena/ and is loaded
+         into this frame the first time the tab is opened. -->
+    <section id="arena-screen" class="screen" aria-label="Арена">
+      <div class="arena-frame-wrap" id="arena-wrap">
+        <div class="arena-loading" id="arena-loading">Загружаем арену…</div>
+      </div>
+    </section>
+
     <nav class="bottom-nav">
       <button class="nav-item active" data-screen="home-screen"><span>◆</span>КВЕСТ</button>
+      <button class="nav-item" data-screen="arena-screen"><span>◎</span>АРЕНА</button>
       <button class="nav-item" data-screen="profile-screen"><span>◈</span>ПРОФИЛЬ</button>
     </nav>
   </main>

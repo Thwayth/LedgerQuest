@@ -4,7 +4,7 @@
    SECURITY MODEL: the client NEVER computes the deposit bonus. It only
    reports what happened in a level (which level, how many shots, how many
    coins) together with Telegram's signed initData. The server
-   (server-example.js) verifies the HMAC signature, checks that the result
+   (arena-api.js) verifies the HMAC signature, checks that the result
    is plausible, works out the stars and the bonus itself, and returns the
    numbers the UI shows. Anything this file receives from the server is
    displayed as-is; nothing here is trusted by the server.
@@ -30,7 +30,7 @@
 (function (global) {
   "use strict";
 
-  // Must match ARENA_CONFIG_VERSION in server-example.js. Bump both whenever
+  // Must match ARENA_CONFIG_VERSION in arena-api.js. Bump both whenever
   // level tiers / shot counts / coin counts change, so an old client can't
   // report results against a level table the server no longer uses.
   var CONFIG_VERSION = "arena-v2";
@@ -73,6 +73,12 @@
     try {
       var w = global.Telegram && global.Telegram.WebApp;
       if (w && typeof w.initData === "string" && w.initData) return w.initData;
+    } catch (e) {}
+    // Embedded in the Ledger Quest Mini App's "Арена" tab (same-origin
+    // iframe): the signed initData lives in the parent window.
+    try {
+      var pw = global.parent && global.parent !== global && global.parent.Telegram && global.parent.Telegram.WebApp;
+      if (pw && typeof pw.initData === "string" && pw.initData) return pw.initData;
     } catch (e) {}
     return launchInitData;
   }

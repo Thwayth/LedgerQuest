@@ -10,6 +10,7 @@ import { createStore } from "./store.js";
 import { questionsForDay } from "./questions.js";
 import { REWARD_TIERS, rewardInfo, exampleTitle } from "./rewards.js";
 import { rankForXp, boostedRewardForScore } from "./ranks.js";
+import { createArenaRouter, createArenaStore } from "./arena-api.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -57,6 +58,16 @@ app.use("/assets", (req, res) => res.status(404).end());
 
 const bot = new Telegraf(BOT_TOKEN);
 const store = createStore();
+
+// Arena mini-game (the "Арена" tab, static files in public/arena/): its
+// deposit-bonus API. Same Telegram initData check as the quest API; the
+// bonus is computed only there (see arena-api.js). Shares the quest's
+// Postgres pool when DATABASE_URL is set.
+app.use("/api/game", createArenaRouter({
+  botToken: BOT_TOKEN,
+  store: createArenaStore(store),
+  initDataMaxAgeSec: INIT_DATA_MAX_AGE
+}));
 
 // Filled in once at startup via bot.telegram.getMe().
 let BOT_USERNAME = null;

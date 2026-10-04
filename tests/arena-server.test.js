@@ -1,4 +1,4 @@
-// Tests for server-example.js: initData HMAC, plausibility checks and the
+// Tests for arena-api.js: initData HMAC, plausibility checks and the
 // bonus math. Run: npm run test:arena
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -8,7 +8,7 @@ import express from "express";
 import {
   createArenaRouter, verifyInitData, MemoryArenaStore,
   ARENA_CONFIG_VERSION, ARENA_LEVELS,
-} from "../server-example.js";
+} from "../arena-api.js";
 
 const BOT_TOKEN = "123456:TEST-token";
 
