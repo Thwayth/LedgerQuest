@@ -443,6 +443,21 @@
 <!-- (stage 3) server API client — the deposit bonus is computed ONLY by the server -->
 <script src="api.js"></script>
 <script>
+/* (2026-10-05) Telegram Mini Apps minimize on a vertical swipe — exactly
+   the slingshot's pull-down gesture. Turn that off for the game (Bot API
+   7.7+). When embedded in the Ledger Quest "Арена" tab, the tab does the
+   same on the parent window and turns it back on when you leave. */
+(function disableTelegramVerticalSwipes(){
+  const wins = [window];
+  try { if (window.parent && window.parent !== window) wins.push(window.parent); } catch(e){}
+  for (const w of wins){
+    try {
+      const tw = w.Telegram && w.Telegram.WebApp;
+      if (tw && typeof tw.disableVerticalSwipes === "function") tw.disableVerticalSwipes();
+    } catch(e){}
+  }
+})();
+
 /* ======================================================================
    SIZES (meters)
    ====================================================================== */
@@ -1583,6 +1598,10 @@ window.addEventListener("keydown", (e) => {
 let cssW = 0, cssH = 0, dpr = 1;
 function resizeCanvas(){
   const W = stageEl.clientWidth, H = stageEl.clientHeight;
+  // Hidden (e.g. the Ledger Quest app switched away from the Арена tab, so
+  // this frame is 0x0): keep the last real size. Rescaling to ~0 broke the
+  // running level's rendering (negative radii) and could stop its loop.
+  if (W < 50 || H < 50) return;
   let w = H * 9/16, h = H;
   if (w > W) { w = W; h = W * 16/9; }
   cssW = w; cssH = h;
@@ -3075,8 +3094,11 @@ function createScene(levelDef, hooks, opts){
   function touchDist(t0, t1){ return Math.hypot(t1.clientX-t0.clientX, t1.clientY-t0.clientY); }
   function onTouchStart(e){
     if (!gameWrap.classList.contains("active")) return;
-    if (e.touches.length < 2) return; // single touch: leave entirely to pointer events above
+    // Every touch on the playfield is the game's: cancel the browser/
+    // Telegram default so pulling the slingshot DOWN can't trigger the
+    // Mini App's swipe-to-minimize (pointer events still fire for aiming).
     e.preventDefault();
+    if (e.touches.length < 2) return; // single touch: aiming/panning is handled by the pointer events above
     // a 2nd finger just landed — cancel any in-progress single-pointer
     // drag/pan so it can never fight the pinch.
     if (inputMode === "drag" && ammoBody){
@@ -3091,8 +3113,8 @@ function createScene(levelDef, hooks, opts){
     pinchStartZoom = camera.zoom;
   }
   function onTouchMove(e){
+    if (gameWrap.classList.contains("active")) e.preventDefault(); // see onTouchStart: no swipe-to-minimize while aiming
     if (!pinchActive || e.touches.length < 2) return;
-    e.preventDefault();
     const dist = touchDist(e.touches[0], e.touches[1]);
     const rawZoom = pinchStartZoom * (dist / pinchStartDist);
     camera.zoom = Math.max(0.55, Math.min(1.0, rawZoom));
@@ -4187,7 +4209,7 @@ function createScene(levelDef, hooks, opts){
     ctx.beginPath(); ctx.arc(0,0,r,0,Math.PI*2);
     ctx.fillStyle = "#0d0a18"; ctx.fill(); // 3px dark outline, via the ring sitting inset on top
     const ringCol = net.rim || net.color;
-    ctx.beginPath(); ctx.arc(0,0,r-1.5,0,Math.PI*2); ctx.fillStyle = ringCol; ctx.fill();
+    ctx.beginPath(); ctx.arc(0,0,Math.max(0.5, r-1.5),0,Math.PI*2); ctx.fillStyle = ringCol; ctx.fill();
     ctx.beginPath(); ctx.arc(0,0,r*0.82,0,Math.PI*2); ctx.fillStyle = "#0d0a18"; ctx.fill(); // thin dark groove
     ctx.beginPath(); ctx.arc(0,0,r*0.76,0,Math.PI*2); ctx.fillStyle = net.color; ctx.fill(); // main disc
 

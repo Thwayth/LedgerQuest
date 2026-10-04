@@ -414,6 +414,15 @@ async function init() {
 // (window.parent.Telegram.WebApp) for its own /api/game/* calls; the hash
 // copy below covers clients where that lookup isn't available.
 let arenaFrame = null;
+// Telegram minimizes the Mini App on a vertical swipe, which is exactly the
+// slingshot's pull-down. Off while the arena tab is open (Bot API 7.7+),
+// back on everywhere else so the usual swipe-to-close still works.
+function setArenaSwipeLock(on) {
+  try {
+    if (on) tg?.disableVerticalSwipes?.();
+    else tg?.enableVerticalSwipes?.();
+  } catch {}
+}
 function openArena() {
   if (!arenaFrame) {
     arenaFrame = document.createElement("iframe");
@@ -460,6 +469,7 @@ function showScreen(id) {
   $(id).classList.add("active");
   document.body.classList.toggle("quiz-mode", id === "quiz-screen");
   document.body.classList.toggle("arena-mode", id === "arena-screen");
+  setArenaSwipeLock(id === "arena-screen");
   if (id !== "quiz-screen") $("next-dock").classList.add("hidden");
   document.querySelectorAll(".nav-item").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.screen === id);
