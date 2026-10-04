@@ -558,25 +558,38 @@ bot.catch(err => console.error("Bot error:", err));
 // bot.launch() rejects on that, and an unhandled rejection used to crash
 // the whole process — taking the Mini App's web server down with it even
 // though only the bot's polling loop was actually affected. Retry instead.
+// During a Render deploy the old instance keeps polling Telegram for a
+// while, so the new one gets "409 Conflict" until the old one is gone.
+// A conflict is therefore retried with no attempt limit (backoff up to
+// 30s) — giving up there could leave NO instance running the bot. Other
+// errors (bad token, network) still stop after maxAttempts.
+// Note: with long polling, bot.launch() only settles when the bot stops,
+// so "running" is logged once it has survived a few seconds without error.
 async function launchBotWithRetry(maxAttempts = 8, delayMs = 4000) {
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+  let otherFailures = 0;
+  for (let attempt = 1; ; attempt++) {
+    const runningTimer = setTimeout(() => console.log("Telegram bot is running (polling)."), 10000);
     try {
       await bot.launch();
-      console.log("Telegram bot launched.");
+      clearTimeout(runningTimer);
+      console.log("Telegram bot stopped.");
       return;
     } catch (error) {
+      clearTimeout(runningTimer);
       const isConflict = error?.response?.error_code === 409;
+      if (!isConflict) otherFailures++;
       console.error(
-        `Telegram bot launch failed (attempt ${attempt}/${maxAttempts})` +
+        `Telegram bot launch failed (attempt ${attempt})` +
           (isConflict ? " — another instance is still shutting down, retrying" : "") +
           ":",
         error.message
       );
-      if (attempt === maxAttempts) {
+      if (!isConflict && otherFailures >= maxAttempts) {
         console.error("Giving up on launching the Telegram bot for now; the Mini App keeps running without it.");
         return;
       }
-      await new Promise(resolve => setTimeout(resolve, delayMs));
+      const wait = isConflict ? Math.min(30000, delayMs * attempt) : delayMs;
+      await new Promise(resolve => setTimeout(resolve, wait));
     }
   }
 }
@@ -613,5 +626,12 @@ main().catch(error => {
   process.exit(1);
 });
 
-process.once("SIGINT", () => bot.stop("SIGINT"));
-process.once("SIGTERM", () => bot.stop("SIGTERM"));
+// Stop polling and exit right away: on a Render deploy this frees the bot
+// for the new instance immediately. bot.stop() throws if the bot isn't
+// running (e.g. still in a retry pause) — that must not crash shutdown.
+function shutdown(signal) {
+  try { bot.stop(signal); } catch {}
+  setTimeout(() => process.exit(0), 300);
+}
+process.once("SIGINT", () => shutdown("SIGINT"));
+process.once("SIGTERM", () => shutdown("SIGTERM"));
