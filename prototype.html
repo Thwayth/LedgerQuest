@@ -462,9 +462,11 @@ const BASE_BOTTOM_W_M = 2.4, BASE_MID_W_M = 2.0, BASE_TOP_W_M = 1.6, BASE_H_M = 
 const BAND_THICK_M = 0.12;
 
 const MATERIALS = {
-  glass:    { density:0.6, friction:0.70, restitution:0, hp:30,  glow:"#22e6ff", glass:true },
-  metal:    { density:1.5, friction:0.80, restitution:0, hp:120, glow:"#22e6ff" },
-  concrete: { density:3.0, friction:0.90, restitution:0, hp:300, glow:"#ff2bd6" },
+  // hp raised 2026-10-04 (balance): a direct hit used to one-shot even
+  // concrete; now concrete takes ~2 direct hits, metal 1-2, glass 1.
+  glass:    { density:0.6, friction:0.70, restitution:0, hp:40,  glow:"#22e6ff", glass:true },
+  metal:    { density:1.5, friction:0.80, restitution:0, hp:220, glow:"#22e6ff" },
+  concrete: { density:3.0, friction:0.90, restitution:0, hp:650, glow:"#ff2bd6" },
 };
 const NETWORKS = {
   bitcoin:  { color:"#ffb02a" },
@@ -473,6 +475,8 @@ const NETWORKS = {
   ripple:   { color:"#ff3ac8" },
 };
 const NET_ORDER = ["bitcoin","ethereum","solana","ripple"];
+// neon halo color per coin (reference: each coin wears a bright ring)
+const COIN_NEON = { bitcoin:"#ff9a1f", ethereum:"#b46bff", solana:"#22e6ff", ripple:"#ff3ac8" };
 
 /* ======================================================================
    ATMOSPHERE / PALETTE SYSTEM (#3, batch-1) — one object per look, baked
@@ -988,29 +992,37 @@ function buildLevel4(){
 function buildLevel5(){
   const blocks = [], coins = [];
   const CX = 12.8; // anchorXM(2.8) + 10.0m target distance
+  // (2026-10-04 balance) Every storey now stands on TWO side-by-side columns
+  // (a twin core) instead of one: breaking a single block no longer drops
+  // the whole spire and every coin with it — the player has to take the
+  // core apart storey by storey. Coin heights/sides are unchanged.
+  const twin = (mat, w, h, yBottom) => {
+    blocks.push({ shape:"box", mat, w, h, x:CX - w/2, yBottom });
+    blocks.push({ shape:"box", mat, w, h, x:CX + w/2, yBottom });
+  };
 
   // tier 0: foundation
-  blocks.push({ shape:"box", mat:"concrete", w:2.2, h:1.4, x:CX, yBottom:0 }); // top=1.4
+  blocks.push({ shape:"box", mat:"concrete", w:3.2, h:1.4, x:CX, yBottom:0 }); // top=1.4
 
-  // column 1 -> balcony 1 (projects RIGHT), coin: bitcoin
-  blocks.push({ shape:"box", mat:"metal", w:1.4, h:1.6, x:CX, yBottom:1.4 }); // top=3.0
-  blocks.push({ shape:"board", mat:"metal", w:3.1, h:0.4, x:CX+0.55, yBottom:3.0 }); // spans [CX-1.0,CX+2.1], top=3.4
-  coins.push({ key:"bitcoin", x:CX+1.5, restOnYBottom:3.4 });
+  // storey 1 -> balcony 1 (projects RIGHT), coin: bitcoin
+  twin("concrete", 0.8, 1.6, 1.4);                                                   // top=3.0
+  blocks.push({ shape:"board", mat:"metal", w:3.3, h:0.4, x:CX+0.55, yBottom:3.0 }); // spans [CX-1.1,CX+2.2], top=3.4
+  coins.push({ key:"bitcoin", x:CX+1.6, restOnYBottom:3.4 });
 
-  // column 2 -> balcony 2 (projects LEFT), coin: ethereum
-  blocks.push({ shape:"box", mat:"metal", w:1.4, h:2.0, x:CX, yBottom:3.4 }); // top=5.4
-  blocks.push({ shape:"board", mat:"metal", w:3.1, h:0.4, x:CX-0.55, yBottom:5.4 }); // spans [CX-2.1,CX+1.0], top=5.8
-  coins.push({ key:"ethereum", x:CX-1.5, restOnYBottom:5.8 });
+  // storey 2 -> balcony 2 (projects LEFT), coin: ethereum
+  twin("concrete", 0.8, 2.0, 3.4);                                                   // top=5.4
+  blocks.push({ shape:"board", mat:"metal", w:3.3, h:0.4, x:CX-0.55, yBottom:5.4 }); // spans [CX-2.2,CX+1.1], top=5.8
+  coins.push({ key:"ethereum", x:CX-1.6, restOnYBottom:5.8 });
 
-  // column 3 -> balcony 3 (projects RIGHT), coin: solana
-  blocks.push({ shape:"box", mat:"metal", w:1.3, h:2.0, x:CX, yBottom:5.8 }); // top=7.8
-  blocks.push({ shape:"board", mat:"metal", w:2.9, h:0.4, x:CX+0.5, yBottom:7.8 }); // spans [CX-0.95,CX+1.95], top=8.2
-  coins.push({ key:"solana", x:CX+1.4, restOnYBottom:8.2 });
+  // storey 3 -> balcony 3 (projects RIGHT), coin: solana
+  twin("concrete", 0.75, 2.0, 5.8);                                                   // top=7.8
+  blocks.push({ shape:"board", mat:"metal", w:3.1, h:0.4, x:CX+0.5, yBottom:7.8 });  // spans [CX-1.05,CX+2.05], top=8.2
+  coins.push({ key:"solana", x:CX+1.5, restOnYBottom:8.2 });
 
-  // column 4 -> balcony 4 (projects LEFT), coin: ripple
-  blocks.push({ shape:"box", mat:"metal", w:1.3, h:2.2, x:CX, yBottom:8.2 }); // top=10.4
-  blocks.push({ shape:"board", mat:"metal", w:2.9, h:0.4, x:CX-0.5, yBottom:10.4 }); // spans [CX-1.95,CX+0.95], top=10.8
-  coins.push({ key:"ripple", x:CX-1.4, restOnYBottom:10.8 });
+  // storey 4 -> balcony 4 (projects LEFT), coin: ripple
+  twin("concrete", 0.75, 2.2, 8.2);                                                   // top=10.4
+  blocks.push({ shape:"board", mat:"metal", w:3.1, h:0.4, x:CX-0.5, yBottom:10.4 }); // spans [CX-2.05,CX+1.05], top=10.8
+  coins.push({ key:"ripple", x:CX-1.5, restOnYBottom:10.8 });
 
   // tapering spire cap: narrow column + metal antenna spire, top = 16.0m
   blocks.push({ shape:"box", mat:"metal", w:1.1, h:2.4, x:CX, yBottom:10.8 }); // top=13.2
@@ -2443,12 +2455,19 @@ function createScene(levelDef, hooks, opts){
   function spawnCoinEntities(){
     levelDef.coins.forEach(c => {
       const y = groundTopM + c.restOnYBottom + COIN_R;
-      const body = world.createBody({ type:"dynamic", position: planck.Vec2(c.x, y), awake:false });
-      body.setBullet(true); // Stage-1 fix: CCD so a fast coin can't tunnel through the ground/blocks
+      // (2026-10-04) A coin is now a KINEMATIC sensor that never moves on
+      // its own. It used to be a dynamic sensor: with no physical support,
+      // any wake-up (a hit up to 4m away) made it fall straight THROUGH its
+      // tower to the ground, where it counted as collected — one shot
+      // anywhere cleared whole levels. Now a coin is knocked out only when
+      // its own support breaks/moves, the ammo touches it, or a block slams
+      // into it (see SUPPORT/KNOCK RULES below).
+      const body = world.createBody({ type:"kinematic", position: planck.Vec2(c.x, y) });
       const fx = body.createFixture(planck.Circle(COIN_R), { isSensor:true, density:0.3 });
       const rec = {
         body, fixture:fx, x:c.x, y, key:c.key, dead:false, id:"coin"+coins.length,
         touchingGround:false, groundRestTimer:0,
+        supports: [],   // filled after the settle check: [{ rec, x, y, a }]
       };
       body.setUserData({ isCoin:true, coinRec:rec });
       coins.push(rec);
@@ -2509,8 +2528,13 @@ function createScene(levelDef, hooks, opts){
   // fire begin/end-contact, they just skip the solver), combined with a
   // per-coin rest timer and an out-of-bounds sweep. Every destruction path
   // funnels through destroyCoin() so logging + the win-check stay in sync.
+  const COIN_ABSORB = 0.6;       // ammo keeps 60% of its speed after taking a coin
+  const COIN_SLAM_SPEED = 3.5;   // m/s — a block hitting a coin this fast knocks it out
+  const SUPPORT_MOVE_M = 0.45;   // a coin's support shifted this far -> the coin falls
+  const SUPPORT_TILT_RAD = 0.30; // ~17 deg of tilt -> the coin rolls off
   let pendingCoinCollect = [];   // hit by the ammo -> always a real "collected" kill
-  let pendingCoinSpeedKill = []; // hit the ground fast -> immediate "knocked out" kill
+  let pendingCoinSpeedKill = []; // an elevated coin reached the ground -> knocked down
+  let pendingCoinHit = [];       // a hard knock from a block/debris (post-solve impulse)
   world.on("begin-contact", (contact) => {
     const ua = contact.getFixtureA().getBody().getUserData();
     const ub = contact.getFixtureB().getBody().getUserData();
@@ -2518,14 +2542,20 @@ function createScene(levelDef, hooks, opts){
     if (!coinUD) return;
     const otherUD = coinUD === ua ? ub : ua;
     if (otherUD && otherUD.isAmmo){
-      pendingCoinCollect.push(coinUD.coinRec);
+      if (!coinUD.coinRec.dead && !pendingCoinCollect.includes(coinUD.coinRec)){
+        pendingCoinCollect.push(coinUD.coinRec);
+        // the coin absorbs part of the hit: the ammo can't punch straight
+        // through a whole column of coins in one flight
+        const ab = coinUD === ua ? contact.getFixtureB().getBody() : contact.getFixtureA().getBody();
+        ammoBrake.push(ab);
+      }
       return;
     }
-    if (otherUD && otherUD.isGround){
-      const rec = coinUD.coinRec;
-      rec.touchingGround = true;
-      const v = rec.body.getLinearVelocity();
-      if (Math.hypot(v.x, v.y) > 1.5) pendingCoinSpeedKill.push(rec);
+    // a block/debris that slams into the coin knocks it out
+    if (otherUD && otherUD.mat && !otherUD.terrain && !otherUD.dead){
+      const ob = coinUD === ua ? contact.getFixtureB().getBody() : contact.getFixtureA().getBody();
+      const v = ob.getLinearVelocity();
+      if (Math.hypot(v.x, v.y) > COIN_SLAM_SPEED && !inGrace()) pendingCoinHit.push(coinUD.coinRec);
     }
   });
   world.on("end-contact", (contact) => {
@@ -2546,6 +2576,7 @@ function createScene(levelDef, hooks, opts){
   function destroyCoin(rec, reason){
     if (rec.dead) return;
     rec.dead = true;
+    rec.reason = reason; rec.deadAtTick = sceneTime;
     console.log('[coin] destroyed', rec.id, rec.key, 'reason:', reason);
     if (reason !== 'out-of-bounds'){
       const cp = rec.body.getPosition();
@@ -2563,11 +2594,16 @@ function createScene(levelDef, hooks, opts){
       console.log('[win-check] all coins resolved for level', LEVELS.indexOf(levelDef));
     }
   }
+  let ammoBrake = [];
   function applyPendingCoinCollect(){
+    for (const b of ammoBrake){ const v = b.getLinearVelocity(); b.setLinearVelocity(planck.Vec2(v.x*COIN_ABSORB, v.y*COIN_ABSORB)); }
+    ammoBrake = [];
     for (const rec of pendingCoinCollect) destroyCoin(rec, 'ammo-hit');
     pendingCoinCollect = [];
-    for (const rec of pendingCoinSpeedKill) destroyCoin(rec, 'speed');
+    for (const rec of pendingCoinSpeedKill) destroyCoin(rec, 'fell');
     pendingCoinSpeedKill = [];
+    for (const rec of pendingCoinHit) destroyCoin(rec, 'hit');
+    pendingCoinHit = [];
   }
   // Per-coin rest timer ("knocked out" after 1.5s continuously on the
   // ground) + out-of-bounds cleanup. Called once per frame right after the
@@ -2586,11 +2622,15 @@ function createScene(levelDef, hooks, opts){
       if (c.dead) continue;
       const p = c.body.getPosition();
       if (p.x < -5 || p.x > OOB_X_MAX || p.y < -3){ destroyCoin(c, 'out-of-bounds'); continue; }
-      if (c.touchingGround){
-        c.groundRestTimer += frameDt;
-        if (c.groundRestTimer >= 1.5) destroyCoin(c, 'rest-timer');
-      } else {
-        c.groundRestTimer = 0;
+      // SUPPORT RULE: the coin is knocked off as soon as anything it rests on
+      // is destroyed, shifted or tilted — the moment it would really fall.
+      for (const s of c.supports){
+        const r = s.rec;
+        if (r.dead){ destroyCoin(c, 'support-lost'); break; }
+        const sp = r.body.getPosition();
+        if (Math.hypot(sp.x - s.x, sp.y - s.y) > SUPPORT_MOVE_M || Math.abs(r.body.getAngle() - s.a) > SUPPORT_TILT_RAD){
+          destroyCoin(c, 'support-moved'); break;
+        }
       }
     }
     // Pit cleanup: anything (block or flying ammo) that falls below the
@@ -2623,6 +2663,29 @@ function createScene(levelDef, hooks, opts){
     for (const r of blocks) r.body.setAwake(false);
   }
   runStabilityCheck();
+  /* ---- SUPPORT/KNOCK RULES for coins (2026-10-04) ----
+     A coin's supports are the destructible blocks right under it: their top
+     is within 0.35m of the coin's bottom and they overlap it horizontally.
+     Measured after the settle check, from where things really rest. A coin
+     with no destructible support (on the ground or on static terrain) can
+     only be taken by the ammo or by a block slamming into it. */
+  for (const c of coins){
+    const cp = c.body.getPosition(), bottom = cp.y - COIN_R;
+    for (const r of blocks){
+      if (r.dead || r.terrain) continue;
+      for (let f = r.body.getFixtureList(); f; f = f.getNext()){
+        const bb = f.getAABB(0);
+        const overlapX = Math.min(bb.upperBound.x, cp.x + COIN_R*0.8) - Math.max(bb.lowerBound.x, cp.x - COIN_R*0.8);
+        if (overlapX > 0.05 && Math.abs(bb.upperBound.y - bottom) <= 0.35){
+          const p = r.body.getPosition();
+          c.supports.push({ rec:r, x:p.x, y:p.y, a:r.body.getAngle() });
+          break;
+        }
+      }
+    }
+    console.log('[coin] supports', c.id, c.key, c.supports.map(s => '#'+s.rec.id+' '+s.rec.mat+' '+s.rec.shape).join(', ') || '(none: ground/terrain)');
+  }
+  pendingCoinCollect = []; pendingCoinSpeedKill = []; pendingCoinHit = [];
 
   // Section-1 required check: live coin count must match the level's coin
   // count right after the structure settles.
@@ -2644,16 +2707,36 @@ function createScene(levelDef, hooks, opts){
   }
   spawnAmmo();
 
-  const DAMAGE_MULT = 16;
+  const DAMAGE_MULT = 12;
+
   const IMPULSE_THRESHOLD = 1.5;
+  const IMPACT_MIN_SPEED = 1.2;  // m/s closing speed — below this a contact is resting, not a hit
   let pendingDamage = [];
   let shakeTime = 0;
   // ---- "Life"/juice (#4, batch-1): hit-stop + flash on a strong hit ----
   let hitStopUntilMs = 0;      // performance.now() deadline — physics/fx are fully frozen (timeScale=0) until this passes
   let slowMoUntilMs = 0;       // performance.now() deadline — timeScale=0.4 until this passes (end-of-turn victory beat)
+  let levelWon = false;         // set once, the instant every coin is down
   let pendingVictoryArgs = null; // {cleared,total,chargesLeft} — queued, fired once slowMoUntilMs passes
   let impactFlashQueue = [];   // [{x,y}] world-m points — drained into real flash particles once per frame (never inside the post-solve callback itself, which must stay cheap/allocation-light)
+  /* (2026-10-04) Damage comes from IMPACTS only. Before, every post-solve
+     impulse above the threshold dealt damage EVERY physics step — including
+     the steady contact force of blocks simply resting on each other (a
+     heavy concrete block presses ~2.4 per step, above the 1.5 threshold).
+     Any woken tower therefore crushed itself within seconds, so one shot
+     anywhere levelled whole structures. pre-solve measures how fast the two
+     bodies were actually closing at the contact point; slower than
+     IMPACT_MIN_SPEED is resting/sliding contact and deals no damage. */
+  world.on("pre-solve", (contact) => {
+    const wm = contact.getWorldManifold(null);
+    const pt = wm && wm.points && wm.points[0];
+    if (!pt){ contact.__approach = 0; return; }
+    const bA = contact.getFixtureA().getBody(), bB = contact.getFixtureB().getBody();
+    const vA = bA.getLinearVelocityFromWorldPoint(pt), vB = bB.getLinearVelocityFromWorldPoint(pt);
+    contact.__approach = -((vB.x - vA.x)*wm.normal.x + (vB.y - vA.y)*wm.normal.y);
+  });
   world.on("post-solve", (contact, impulse) => {
+    if (!(contact.__approach >= IMPACT_MIN_SPEED)) return;
     const j = impulse.normalImpulses[0] || 0;
     if (j < IMPULSE_THRESHOLD) return;
     const fA = contact.getFixtureA(), fB = contact.getFixtureB();
@@ -2809,20 +2892,29 @@ function createScene(levelDef, hooks, opts){
   // structure's bounding box are inside frame — reuses structureBoundsM,
   // the same bounding box the flyover already computes once per level
   // load, just at a different fixed zoom.
-  const PULL_ZOOM = 0.65;
+  // (2026-10-04) The pull framing is no longer a fixed 0.65x centred on
+  // the whole scene: on the long levels (7-8, ~55m from sling to the far
+  // tower) that pushed the slingshot itself off the left edge, so players
+  // aimed blind and under-powered their shots. Now the slingshot is ALWAYS
+  // kept in frame (left-anchored), and the zoom eases out as far as needed
+  // to show the target, between PULL_ZOOM_MAX and PULL_ZOOM_MIN.
+  const PULL_ZOOM_MAX = 0.65, PULL_ZOOM_MIN = 0.45;
   function startPullCamera(){
-    const visW = VISIBLE_W_M / PULL_ZOOM;
     const lo = Math.min(structureBoundsM.minX, anchorM.x) - 1.0;
-    const hi = Math.max(structureBoundsM.maxX, anchorM.x) + 1.0;
-    const camX = clampCamX((lo+hi)/2 - visW/2, PULL_ZOOM);
+    const hi = Math.max(structureBoundsM.maxX, anchorM.x) + 1.5;
+    const zoom = Math.max(PULL_ZOOM_MIN, Math.min(PULL_ZOOM_MAX, VISIBLE_W_M / (hi - lo)));
+    const visW = VISIBLE_W_M / zoom;
+    // centre the span when it fits; otherwise keep the sling's side in view
+    const camX = clampCamX((hi - lo) <= visW ? (lo + hi)/2 - visW/2 : anchorM.x - 0.12*visW, zoom);
     camera.state = "pulling";
-    startCameraEase(camX, PULL_ZOOM, 400);
+    startCameraEase(camX, zoom, 400);
   }
   function endPullCameraToResting(){
     camera.state = "resting";
     startCameraEase(CAM_LEFT_M, 1, 500);
   }
 
+  let dragStartPx = { x:0, y:0 };
   function onDown(e){
     if (!gameWrap.classList.contains("active")) return; // menu open: ignore
     if (resultOverlay.classList.contains("show")) return; // result popup: ignore
@@ -2839,6 +2931,7 @@ function createScene(levelDef, hooks, opts){
       const d = Math.hypot(p.x-pos.x, p.y-pos.y);
       if (d < AMMO_R*SCALE*camera.zoom*2.8){
         inputMode = "drag"; dragging = true;
+        dragStartPx = { x:p.x, y:p.y };
         hooks.onHint && hooks.onHint("", false);
         try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
         startPullCamera();
@@ -2860,13 +2953,19 @@ function createScene(levelDef, hooks, opts){
     if (inputMode === "drag"){
       if (!dragging || !ammoBody) return;
       e.preventDefault();
+      // (2026-10-04) pull strength is measured in SCREEN pixels from the
+      // sling (full power = PULL_PX), independent of the camera zoom — at
+      // the far levels' zoomed-out framing the old world-space pull meant
+      // full power was only ~20px of finger travel.
+      // measured from where the finger first touched the pouch, so the
+      // pull camera easing out underneath can't change the shot strength
       const p = pointerPos(e);
-      const pm = toM(p.x, p.y);
-      const dx = pm.x - anchorM.x, dy = pm.y - anchorM.y;
-      const dist = Math.hypot(dx, dy);
-      const clamped = Math.min(dist, MAX_PULL_M);
-      const ang = Math.atan2(dy, dx);
-      ammoBody.setPosition(planck.Vec2(anchorM.x + Math.cos(ang)*clamped, anchorM.y + Math.sin(ang)*clamped));
+      const dxp = p.x - dragStartPx.x, dyp = p.y - dragStartPx.y;
+      const distPx = Math.hypot(dxp, dyp);
+      const PULL_PX = Math.max(70, Math.min(140, cssW*0.25));
+      const pullM = Math.min(1, distPx / PULL_PX) * MAX_PULL_M;
+      const ang = Math.atan2(-dyp, dxp); // screen y grows down
+      ammoBody.setPosition(planck.Vec2(anchorM.x + Math.cos(ang)*pullM, anchorM.y + Math.sin(ang)*pullM));
       return;
     }
     if (inputMode === "pan"){
@@ -2884,6 +2983,20 @@ function createScene(levelDef, hooks, opts){
       e.preventDefault();
       dragging = false;
       try{ canvas.releasePointerCapture(e.pointerId); }catch(err){}
+      releaseShot();
+      return;
+    }
+    if (inputMode === "pan"){
+      inputMode = "none";
+      try{ canvas.releasePointerCapture(e.pointerId); }catch(err){}
+      panLastMoveMs = performance.now(); // idle-return timer (see updateCameraState) starts counting from release
+    }
+  }
+  // Fires the loaded ammo from wherever the pouch currently is. Shared by
+  // the real pointer release and the debug/test hook (scene.__debug.shoot).
+  let shotMaxX = 0;
+  function releaseShot(){
+      if (!ammoBody) return false;
       const pos = ammoBody.getPosition();
       const dx = anchorM.x - pos.x, dy = anchorM.y - pos.y;
       const pull = Math.hypot(dx, dy);
@@ -2892,8 +3005,9 @@ function createScene(levelDef, hooks, opts){
         // released without shooting (dragged back to the anchor/cancelled):
         // ease the tension camera back to the normal resting framing.
         endPullCameraToResting();
-        return;
+        return false;
       }
+      shotMaxX = pos.x;
       const vx = dx * LAUNCH_POWER, vy = dy * LAUNCH_POWER;
       ammoBody.setType("dynamic");
       ammoBody.setBullet(true);
@@ -2913,13 +3027,7 @@ function createScene(levelDef, hooks, opts){
       // camera (#1): a shot is now in the air — switch to 'following'
       camera.state = "following";
       camera.easing = false;
-      return;
-    }
-    if (inputMode === "pan"){
-      inputMode = "none";
-      try{ canvas.releasePointerCapture(e.pointerId); }catch(err){}
-      panLastMoveMs = performance.now(); // idle-return timer (see updateCameraState) starts counting from release
-    }
+      return true;
   }
   if (!SNAPSHOT){
     canvas.addEventListener("pointerdown", onDown);
@@ -3094,6 +3202,7 @@ function createScene(levelDef, hooks, opts){
       const speed = Math.hypot(v.x, v.y);
       ammoSlowAccum = speed < 0.3 ? ammoSlowAccum + frameDt : 0;
       const p = flying.getPosition();
+      if (p.x > shotMaxX) shotMaxX = p.x;
       trail.push({x:p.x,y:p.y});
       if (trail.length > 22) trail.shift();
     } else {
@@ -3137,10 +3246,6 @@ function createScene(levelDef, hooks, opts){
       if ((maxSpeed < 0.25 && flyingAsleep) || ammoSlowAccum >= 1.5 || settledTimer.ticks > 240){
         settledTimer = null;
         if (flying){ world.destroyBody(flying); flying = null; }
-        // End-of-turn safety net: any coin still resting on the ground right
-        // now is resolved immediately, instead of waiting out its 1.5s
-        // rest-timer across the turn boundary.
-        for (const c of coins){ if (!c.dead && c.touchingGround) destroyCoin(c, 'end-of-turn'); }
         const clearedCount = coins.filter(c=>c.dead).length;
         // Combo text (#4): >=3 destructions in this single shot.
         if (shotKillCount >= 3){
@@ -3150,7 +3255,9 @@ function createScene(levelDef, hooks, opts){
           });
         }
         shotKillCount = 0;
-        if (clearedCount === coins.length && coins.length > 0){
+        if (levelWon){
+          // already handled the moment the last coin went down (see below)
+        } else if (clearedCount === coins.length && coins.length > 0){
           // End-of-turn victory beat (#4): 0.4x slow-mo for 1s, THEN the
           // result overlay — queued rather than fired immediately, see the
           // timeScale block at the top of step().
@@ -3161,6 +3268,15 @@ function createScene(levelDef, hooks, opts){
           if (clearedCount < coins.length && chargesUsed < AMMO_CHARGES) spawnAmmo();
         }
       }
+    }
+    // Victory fires the moment the LAST coin is knocked out — no need to wait
+    // for every block to stop moving, and never a need for another shot.
+    if (!levelWon && coins.length && coins.every(c => c.dead)){
+      levelWon = true;
+      settledTimer = null;
+      if (ammoBody){ world.destroyBody(ammoBody); ammoBody = null; dragging = false; }
+      slowMoUntilMs = now + 1000;
+      pendingVictoryArgs = { cleared: coins.length, total: coins.length, chargesLeft: AMMO_CHARGES - chargesUsed, score };
     }
     if (pendingVictoryArgs && now >= slowMoUntilMs){
       const a = pendingVictoryArgs; pendingVictoryArgs = null;
@@ -3538,6 +3654,36 @@ function createScene(levelDef, hooks, opts){
       b.beginPath(); b.moveTo(bx, cssH); b.lineTo(vpX + (bx-vpX)*0.15, groundPxY); b.stroke();
     }
 
+    // (reference pass) neon circuit traces etched into the floor: short
+    // horizontal runs along the tile rows with a drop to the next row and a
+    // node dot at each end. Deterministic per WORLD tile index (hash01), so
+    // the pattern scrolls with the camera and never flickers.
+    if (rows >= 3){
+      b.save();
+      b.globalCompositeOperation = "lighter";
+      b.lineWidth = 1.4; b.lineCap = "round";
+      const baseIdx = Math.floor(panPx / tileW);
+      for (let i=-3;i<=cols+1;i++){
+        const idx = baseIdx + i;
+        if (hash01(idx*7.31 + 3.7) < 0.5) continue;
+        const r0 = 1 + Math.floor(hash01(idx*3.17 + 1.1) * (rows-2));
+        const len = 1 + Math.floor(hash01(idx*5.93 + 2.3) * 2.5);
+        const y0 = groundPxY + (cssH-groundPxY)*((r0+0.5)/rows);
+        const y1 = groundPxY + (cssH-groundPxY)*(Math.min(rows-0.5, r0+1.5)/rows);
+        const x0 = i*tileW + bxOffset + tileW*0.3, x1 = x0 + len*tileW*0.9;
+        const col = hash01(idx*1.7) > 0.5 ? palette.accentNeon1 : palette.accentNeon2;
+        b.strokeStyle = col; b.fillStyle = col;
+        b.globalAlpha = 0.18; b.lineWidth = 4;
+        b.beginPath(); b.moveTo(x0,y0); b.lineTo(x1,y0); b.lineTo(x1+(y1-y0)*0.6,y1); b.stroke();
+        b.globalAlpha = 0.7; b.lineWidth = 1.3;
+        b.beginPath(); b.moveTo(x0,y0); b.lineTo(x1,y0); b.lineTo(x1+(y1-y0)*0.6,y1); b.stroke();
+        b.globalAlpha = 0.9;
+        b.beginPath(); b.arc(x0,y0,2,0,Math.PI*2); b.fill();
+        b.beginPath(); b.arc(x1+(y1-y0)*0.6,y1,2,0,Math.PI*2); b.fill();
+      }
+      b.restore();
+    }
+
     // thin soft reflected highlight from the sky color, right at the horizon
     const refl = b.createLinearGradient(0,groundPxY, 0,groundPxY+cssH*0.05);
     refl.addColorStop(0,"rgba(122,60,200,.35)"); refl.addColorStop(1,"rgba(122,60,200,0)");
@@ -3624,83 +3770,122 @@ function createScene(levelDef, hooks, opts){
       o.closePath(); o.fill();
       o.restore();
     } else {
-      // concrete + metal share ONE visual family now (per reference: lighter
-      // grey-metal blocks, no separate "concrete noise" texture) — material
-      // still drives physics (density/hp) elsewhere, only appearance is unified.
-      const isBoard = shape === "board" || shape === "platform"; // platforms get the same neon-edge/bolts board treatment
-      const base0 = isBoard ? "#7a7892" : "#5c5a72";
-      const base1 = isBoard ? "#565470" : "#403e55";
-      const g = o.createLinearGradient(0,0,0,hpx);
-      g.addColorStop(0, shade(base0,tone)); g.addColorStop(1, shade(base1,tone));
-      o.fillStyle = g; o.fillRect(0,0,wpx,hpx);
+      /* (2026-10-04, reference pass) industrial scaffold look: a dark
+         riveted steel FRAME with a recessed inner panel, X cross-bracing on
+         metal crates (split into stacked cells on tall blocks), a glowing
+         slot on concrete panels, a truss on long beams, and a thin neon
+         trim. Everything is deterministic per block (hash01 on the seed),
+         baked once into the cached sprite — no per-frame cost. */
+      const isBoard = shape === "board" || shape === "platform" || isBeam;
+      const isConcrete = mat === "concrete";
+      const m = Math.min(wpx, hpx);
+      const fw = Math.max(2.5, Math.min(8, m*0.16));          // frame thickness, px
+      neonColor = isConcrete ? "#ff2bd6" : (hash01(seed+13) > 0.45 ? "#22e6ff" : "#ff2bd6");
+      const frameTop = shade(isConcrete ? "#5a4a62" : "#55506e", tone);
+      const frameBot = shade(isConcrete ? "#3a2e44" : "#34304a", tone);
+      const inner0 = isConcrete ? "#2a2132" : "#221f33", inner1 = isConcrete ? "#1a1420" : "#15131f";
 
-      // bevel: 3px light strip on top, 3px dark strip on bottom
-      o.fillStyle = "rgba(255,255,255,.35)"; o.fillRect(0,0,wpx,3);
-      o.fillStyle = "rgba(0,0,0,.45)"; o.fillRect(0,Math.max(3,hpx-3),wpx,3);
+      // recessed inner panel
+      const ig = o.createLinearGradient(0,0,0,hpx);
+      ig.addColorStop(0, inner0); ig.addColorStop(1, inner1);
+      o.fillStyle = ig; o.fillRect(0,0,wpx,hpx);
 
-      // 2-4 deterministic details, picked (and placed) by the per-block seed
-      // — never Math.random(), so every repaint of the same block is identical.
-      const detailPool = ["panel","crack","hatch","seam"];
-      const order = detailPool.map((d,i)=>i).sort((a,b)=> hash01(seed+61+a) - hash01(seed+61+b));
-      const nDetails = Math.min(detailPool.length, 2 + Math.floor(hash01(seed+50)*3)); // 2-4
-      for (let i=0;i<nDetails;i++){
-        const kind = detailPool[order[i]];
-        if (kind === "panel" && wpx>14 && hpx>14){
-          const ix = wpx*0.18, iy = hpx*0.24, iw = wpx*0.64, ih = hpx*0.52;
-          o.strokeStyle = "rgba(0,0,0,.4)"; o.lineWidth = 1.2;
-          o.beginPath(); o.moveTo(ix,iy+ih); o.lineTo(ix,iy); o.lineTo(ix+iw,iy); o.stroke();
-          o.strokeStyle = "rgba(255,255,255,.2)";
-          o.beginPath(); o.moveTo(ix+iw,iy); o.lineTo(ix+iw,iy+ih); o.lineTo(ix,iy+ih); o.stroke();
-        } else if (kind === "crack"){
-          const cx0 = wpx*(0.2+hash01(seed+i*31+40)*0.6), cy0 = hpx*0.12;
-          o.strokeStyle = "rgba(0,0,0,.4)"; o.lineWidth = 1;
-          o.beginPath(); o.moveTo(cx0,cy0);
-          o.lineTo(cx0 + wpx*0.12*(hash01(seed+i*41+42)-0.5)*2, hpx*0.5);
-          o.lineTo(cx0 - wpx*0.08*(hash01(seed+i*43+43)-0.5)*2, hpx*0.85);
-          o.stroke();
-        } else if (kind === "hatch" && wpx>10 && hpx>10){
-          const hs = Math.min(wpx,hpx)*0.22;
-          const hx = wpx*(0.58+hash01(seed+i*7+5)*0.2) - hs/2, hy = hpx*(0.5+hash01(seed+i*11+6)*0.3)-hs/2;
-          o.strokeStyle = "rgba(0,0,0,.45)"; o.lineWidth = 1;
-          o.strokeRect(hx,hy,hs,hs);
-          o.beginPath(); o.moveTo(hx,hy); o.lineTo(hx+hs,hy+hs); o.moveTo(hx+hs,hy); o.lineTo(hx,hy+hs); o.stroke();
-        } else if (kind === "seam"){
-          const sx = wpx*(0.3+hash01(seed+i*17+7)*0.4);
-          o.strokeStyle = "rgba(0,0,0,.35)"; o.lineWidth = 1;
-          o.beginPath(); o.moveTo(sx,3); o.lineTo(sx,hpx-3); o.stroke();
+      const ix = fw, iy = fw, iw = wpx-2*fw, ih = hpx-2*fw;
+      const braceCol = shade(isConcrete ? "#4a3c52" : "#463f5e", tone);
+      const brace = (x0,y0,x1,y1,wid) => {
+        o.strokeStyle = "rgba(0,0,0,.55)"; o.lineWidth = wid+2;
+        o.beginPath(); o.moveTo(x0,y0+1); o.lineTo(x1,y1+1); o.stroke();
+        o.strokeStyle = braceCol; o.lineWidth = wid;
+        o.beginPath(); o.moveTo(x0,y0); o.lineTo(x1,y1); o.stroke();
+        o.strokeStyle = "rgba(255,255,255,.12)"; o.lineWidth = 1;
+        o.beginPath(); o.moveTo(x0,y0-wid*0.35); o.lineTo(x1,y1-wid*0.35); o.stroke();
+      };
+
+      if (isBoard && iw > 6 && ih > 2){
+        // beam: a zig-zag truss between two chords
+        o.save(); o.beginPath(); o.rect(ix,iy,iw,ih); o.clip();
+        const n = Math.max(1, Math.round(iw / Math.max(ih*1.6, 10)));
+        const step = iw / n;
+        for (let i=0;i<n;i++){
+          const x0 = ix + i*step;
+          brace(x0, i%2 ? iy+ih : iy, x0+step, i%2 ? iy : iy+ih, Math.max(1.5, fw*0.55));
+        }
+        o.restore();
+      } else if (!isConcrete && iw > 8 && ih > 8){
+        // metal crate: X-brace per roughly-square cell
+        const cells = Math.max(1, Math.round(ih / Math.max(iw, 1)));
+        const ch = ih / cells;
+        o.save(); o.beginPath(); o.rect(ix,iy,iw,ih); o.clip();
+        for (let c=0;c<cells;c++){
+          const cy = iy + c*ch;
+          const bw = Math.max(1.5, Math.min(iw,ch)*0.13);
+          brace(ix, cy, ix+iw, cy+ch, bw);
+          brace(ix+iw, cy, ix, cy+ch, bw);
+          if (c > 0){ // horizontal strut between cells
+            o.fillStyle = frameBot; o.fillRect(ix, cy-fw*0.35, iw, fw*0.7);
+          }
+        }
+        o.restore();
+      } else if (isConcrete && iw > 8 && ih > 8){
+        // concrete panel: horizontal seams + a recessed glowing slot
+        o.strokeStyle = "rgba(0,0,0,.45)"; o.lineWidth = 1;
+        const seams = Math.max(1, Math.floor(ih / 22));
+        for (let i=1;i<=seams;i++){ const y = iy + ih*i/(seams+1); o.beginPath(); o.moveTo(ix,y); o.lineTo(ix+iw,y); o.stroke(); }
+        const sw = Math.min(iw*0.6, 40), sh = Math.max(3, Math.min(ih*0.14, 7));
+        const sx = ix + (iw - sw)/2, sy = iy + ih*(0.3 + hash01(seed+77)*0.4) - sh/2;
+        o.fillStyle = "#0a0710"; o.fillRect(sx-1.5, sy-1.5, sw+3, sh+3);
+        o.save(); o.shadowColor = neonColor; o.shadowBlur = 8;
+        o.fillStyle = neonColor; o.globalAlpha = 0.9; o.fillRect(sx, sy, sw, sh);
+        o.restore();
+        o.fillStyle = "rgba(255,255,255,.55)"; o.fillRect(sx+1, sy+0.5, sw-2, Math.max(1, sh*0.25));
+      }
+
+      // the frame itself: 4 bevelled bars
+      const fg = o.createLinearGradient(0,0,0,hpx);
+      fg.addColorStop(0, frameTop); fg.addColorStop(1, frameBot);
+      o.fillStyle = fg;
+      o.fillRect(0,0,wpx,fw); o.fillRect(0,hpx-fw,wpx,fw);
+      o.fillRect(0,fw,fw,hpx-2*fw); o.fillRect(wpx-fw,fw,fw,hpx-2*fw);
+      o.fillStyle = "rgba(255,255,255,.22)"; o.fillRect(0,0,wpx,1.5); o.fillRect(0,0,1.5,hpx);          // lit top/left edge
+      o.fillStyle = "rgba(0,0,0,.45)"; o.fillRect(0,hpx-1.5,wpx,1.5); o.fillRect(wpx-1.5,0,1.5,hpx);    // shaded bottom/right
+      o.strokeStyle = "rgba(0,0,0,.5)"; o.lineWidth = 1; o.strokeRect(ix+0.5, iy+0.5, Math.max(0,iw-1), Math.max(0,ih-1)); // inner lip
+
+      // rivets in the frame corners (and mid-span on long sides)
+      if (fw >= 3){
+        const rr = Math.max(0.9, fw*0.22);
+        const pts = [[fw/2,fw/2],[wpx-fw/2,fw/2],[fw/2,hpx-fw/2],[wpx-fw/2,hpx-fw/2]];
+        if (wpx > 70){ pts.push([wpx/2,fw/2],[wpx/2,hpx-fw/2]); }
+        if (hpx > 70){ pts.push([fw/2,hpx/2],[wpx-fw/2,hpx/2]); }
+        for (const [rx,ry] of pts){
+          o.fillStyle = "rgba(0,0,0,.5)"; o.beginPath(); o.arc(rx+0.6,ry+0.6,rr,0,Math.PI*2); o.fill();
+          o.fillStyle = "#8f88a8"; o.beginPath(); o.arc(rx,ry,rr,0,Math.PI*2); o.fill();
         }
       }
 
-      applyShadeAndRim(o, wpx, hpx);
-
-      // neon: boards (slabs/overhangs) always get a line along the bottom
-      // edge + short tick marks, plus bolts; everything else has a ~60%
-      // chance of a bright 6px stripe along one vertical edge.
+      // neon trim: beams glow along the bottom chord, crates/panels along
+      // one vertical inner edge, plus a small indicator light on crates
+      o.save();
+      o.shadowColor = neonColor; o.shadowBlur = 7;
+      o.strokeStyle = neonColor; o.lineWidth = Math.max(1.5, fw*0.35);
       if (isBoard){
-        neonColor = hash01(seed+9) > 0.5 ? "#22e6ff" : "#ff2bd6";
         neonEdge = "bottom";
-        o.save();
-        o.shadowColor = neonColor; o.shadowBlur = 8;
-        o.strokeStyle = neonColor; o.lineWidth = 3;
-        o.beginPath(); o.moveTo(2,hpx-4); o.lineTo(wpx-2,hpx-4); o.stroke();
-        for (let tx=wpx*0.1; tx<wpx; tx+=wpx*0.18){
-          o.beginPath(); o.moveTo(tx,hpx-4); o.lineTo(tx,hpx-4+6); o.stroke();
-        }
-        o.restore();
-        o.fillStyle = "rgba(230,230,240,.55)";
-        [6, wpx-6].forEach(bx=>{ o.beginPath(); o.arc(bx,hpx*0.5,Math.max(1.4,hpx*0.1),0,Math.PI*2); o.fill(); });
-      } else if (hash01(seed+9) > 0.4){ // ~60% of blocks
-        neonColor = hash01(seed+13) > 0.5 ? "#22e6ff" : "#ff2bd6";
+        o.beginPath(); o.moveTo(fw, hpx-fw*0.5); o.lineTo(wpx-fw, hpx-fw*0.5); o.stroke();
+      } else {
         const onRight = hash01(seed+21) > 0.5;
         neonEdge = onRight ? "right" : "left";
-        const stripW = 6;
-        const side = onRight ? wpx-stripW/2 : stripW/2;
-        o.save();
-        o.shadowColor = neonColor; o.shadowBlur = 10;
-        o.strokeStyle = neonColor; o.lineWidth = stripW;
-        o.beginPath(); o.moveTo(side, hpx*0.06); o.lineTo(side, hpx*0.94); o.stroke();
-        o.restore();
+        const x = onRight ? wpx-fw*0.5 : fw*0.5;
+        o.beginPath(); o.moveTo(x, hpx*0.12); o.lineTo(x, hpx*0.88); o.stroke();
+        if (!isConcrete && iw > 14 && ih > 14 && hash01(seed+31) > 0.35){
+          const ls = Math.max(3, Math.min(iw, ih)*0.16);
+          const lx = onRight ? ix + 3 : ix + iw - ls - 3, ly = iy + 3;
+          o.fillStyle = "#0a0710"; o.fillRect(lx-1, ly-1, ls+2, ls+2);
+          o.fillStyle = hash01(seed+33) > 0.5 ? "#ff2bd6" : "#22e6ff"; o.fillRect(lx, ly, ls, ls);
+        }
       }
+      o.restore();
+      // warm rim from the sun side (upper right), like the rest of the scene
+      o.strokeStyle = "rgba(255,154,106,.35)"; o.lineWidth = 1.5;
+      o.beginPath(); o.moveTo(wpx-0.75, 1); o.lineTo(wpx-0.75, hpx-1); o.stroke();
     }
     // 3px dark outline around the whole sprite, all materials
     o.strokeStyle = "#0b0816"; o.lineWidth = 3;
@@ -3772,6 +3957,13 @@ function createScene(levelDef, hooks, opts){
     const g = ctx.createLinearGradient(0,-rec.h*SCALE/2,0,rec.h*SCALE/2);
     g.addColorStop(0, matDef.glass?"#2f5d82":"#4a4656"); g.addColorStop(1, matDef.glass?"#163044":"#242129");
     drawPolyLocal(vertsM, g, "#0d0a18", 3);
+    if (!matDef.glass){
+      // (reference pass) inset frame + corner rivets, same language as the crates
+      const inset = vertsM.map(v => ({ x:v.x*0.68, y:v.y*0.68 }));
+      drawPolyLocal(inset, "rgba(10,7,16,.55)", "rgba(255,255,255,.10)", 1);
+      ctx.fillStyle = "#8f88a8";
+      for (const v of vertsM){ ctx.beginPath(); ctx.arc(v.x*0.82*SCALE, -v.y*0.82*SCALE, Math.max(0.9, SCALE*0.035), 0, Math.PI*2); ctx.fill(); }
+    }
     drawPolyLocal(vertsM, "rgba(0,0,0,0)", matDef.glow, Math.max(1, SCALE*0.03));
     if (rec.crackStage>=1){ ctx.strokeStyle="rgba(255,255,255,.6)"; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(-rec.w*SCALE*0.2,0); ctx.lineTo(rec.w*SCALE*0.1,rec.h*SCALE*0.2); ctx.stroke(); }
     ctx.restore();
@@ -3828,11 +4020,6 @@ function createScene(levelDef, hooks, opts){
       drawGlow(ctx, gx, gy, 10, spr.neonColor, 0.6);
     }
 
-    if (rec.shape === "board"){
-      // a few plank seams, distinct from a plain box/beam
-      ctx.strokeStyle = "rgba(0,0,0,.4)"; ctx.lineWidth = Math.max(1, hpx*0.08);
-      for (let i=1;i<=3;i++){ const sx=-wpx/2+wpx*(i/4); ctx.beginPath(); ctx.moveTo(sx,-hpx/2); ctx.lineTo(sx,hpx/2); ctx.stroke(); }
-    }
 
     if (rec.crackStage >= 1){
       ctx.strokeStyle = "rgba(255,255,255,.6)"; ctx.lineWidth = 1.2;
@@ -3962,6 +4149,20 @@ function createScene(levelDef, hooks, opts){
     drawGlow(ctx, pp.x, pp.y, r*1.7, net.rim || net.color, 0.8*pulse);
     ctx.save();
     ctx.translate(pp.x, pp.y);
+    // (reference pass) bright neon halo ring around the coin — additive
+    // strokes, no per-frame shadowBlur
+    {
+      const neon = COIN_NEON[key] || net.rim || net.color;
+      ctx.globalCompositeOperation = "lighter";
+      ctx.strokeStyle = neon;
+      ctx.globalAlpha = 0.22*pulse; ctx.lineWidth = Math.max(4, r*0.34);
+      ctx.beginPath(); ctx.arc(0,0,r*1.1,0,Math.PI*2); ctx.stroke();
+      ctx.globalAlpha = 0.45*pulse; ctx.lineWidth = Math.max(2.5, r*0.16);
+      ctx.beginPath(); ctx.arc(0,0,r*1.05,0,Math.PI*2); ctx.stroke();
+      ctx.globalAlpha = 0.95; ctx.lineWidth = Math.max(1.2, r*0.06);
+      ctx.beginPath(); ctx.arc(0,0,r*1.03,0,Math.PI*2); ctx.stroke();
+      ctx.globalCompositeOperation = "source-over";
+    }
     ctx.globalAlpha = pulse;
 
     // layered, glossy structure: dark outline -> outer ring (light color) ->
@@ -4517,6 +4718,29 @@ function createScene(levelDef, hooks, opts){
 
   return {
     snapshot,
+    // Test/QA hook (used by the automated balance sweep): fire the loaded
+    // ammo at `angleDeg` above horizontal with `pullFrac` (0..1) of the max
+    // pull, exactly as a finger release would. Game rules are unaffected.
+    __debug: {
+      shoot(angleDeg, pullFrac){
+        if (!ammoBody || flying || dragging) return false;
+        const a = angleDeg*Math.PI/180, pull = Math.max(0, Math.min(1, pullFrac))*MAX_PULL_M;
+        ammoBody.setPosition(planck.Vec2(anchorM.x - Math.cos(a)*pull, anchorM.y - Math.sin(a)*pull));
+        return releaseShot();
+      },
+      wakeAll(){ for (const r of blocks) if (!r.dead) r.body.setAwake(true); },
+      state(){
+        return {
+          ready: !!ammoBody && !flying && !settledTimer,
+          flying: !!flying, shotMaxX, chargesUsed, charges: AMMO_CHARGES,
+          coinsAlive: coins.filter(c => !c.dead).length, coinsTotal: coins.length,
+          blocksAlive: blocks.filter(b => !b.dead && !b.terrain).length,
+          coins: coins.map(c => ({ x:+c.x.toFixed(2), y:+c.y.toFixed(2), dead:c.dead, reason:c.reason, tick:c.deadAtTick })),
+          tick: sceneTime,
+          anchor: { x:anchorM.x, y:anchorM.y },
+        };
+      },
+    },
     onResize(){
       computeCamera();
       spriteCache.clear();
