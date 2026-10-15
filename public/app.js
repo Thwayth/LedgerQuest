@@ -268,17 +268,27 @@ const voice = {
       if (r.ok) this.files = (await r.json()).files || {};
     } catch {}
   },
-  // Browsers only allow sound after a tap: the first tap anywhere "unlocks"
-  // this one Audio element, and later lines play on it.
+  // Browsers only allow sound after a tap: a tap "unlocks" this one Audio
+  // element, and later lines play on it. iOS / Android WebViews only count
+  // the END of a tap (touchend / click), so we listen to all of them and
+  // keep trying until one play() actually succeeds.
   unlock() {
-    if (this.unlocked) return;
-    this.unlocked = true;
+    if (this.unlocked || this.unlocking) return;
+    // iOS 17+: play even with the silent switch on (like a video app would)
+    try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch {}
     const a = this.audio;
+    if (!a.paused) { this.unlocked = true; return; } // a line is already playing
+    this.unlocking = true;
     a.src = silentWavUrl();
     const silent = a.src;
     const pr = a.play();
-    // only pause the silence — a real line may already have taken over
-    if (pr && pr.then) pr.then(() => { if (a.src === silent) a.pause(); }).catch(() => {});
+    const done = ok => {
+      this.unlocking = false;
+      if (ok) this.unlocked = true;
+      // only pause the silence — a real line may already have taken over
+      if (a.src === silent) a.pause();
+    };
+    if (pr && pr.then) pr.then(() => done(true), () => done(false)); else done(true);
   },
   setOn(on) {
     this.on = on;
@@ -290,12 +300,18 @@ const voice = {
     });
   },
   stop() { try { this.audio.pause(); } catch {} this.audio.onended = null; },
+  setBlocked(on) {
+    this.blocked = on;
+    document.querySelectorAll(".voice-btn").forEach(b => b.classList.toggle("blocked", on));
+  },
   // Plays the line if a voice file exists; resolves when it's done (or at
   // once, with false, when it can't play).
   speak(text) {
     this.stop();
+    this.setBlocked(false);
     const file = this.on && this.files && this.files[voiceKey(text)];
     if (!file) return Promise.resolve(false);
+    this.lastText = text;
     return new Promise(resolve => {
       const a = this.audio;
       let done = false;
@@ -304,13 +320,18 @@ const voice = {
       a.onerror = () => finish(false);
       a.src = "/assets/voice/" + (file.file || file);
       const pr = a.play();
-      if (pr && pr.catch) pr.catch(() => finish(false));
+      if (pr && pr.then) pr.then(() => { this.unlocked = true; }, err => {
+        // the phone refused sound without a fresh tap: make 🔊 blink, a tap on it replays the line
+        if (err && err.name === "NotAllowedError") this.setBlocked(true);
+        finish(false);
+      });
       setTimeout(() => finish(true), 15000); // safety net
     });
   }
 };
 voice.load();
-document.addEventListener("pointerdown", () => voice.unlock(), { once: true, capture: true });
+["touchend", "click", "keydown"].forEach(ev =>
+  document.addEventListener(ev, () => voice.unlock(), { capture: true, passive: true }));
 
 // The two places the whale appears: the home hero and the quiz stage.
 // Only the visible one plays; both pause while the app is in background.
@@ -324,7 +345,12 @@ const whale = {
     const h = $("whale-hero");
     if (h) { this.hero = createWhalePlayer(h); this.hero.play("greet", () => this.hero.idle()); }
     document.querySelectorAll(".voice-btn").forEach(b => {
-      b.addEventListener("click", e => { e.stopPropagation(); voice.setOn(!voice.on); });
+      b.addEventListener("click", e => {
+        e.stopPropagation();
+        // sound was blocked: this tap is the permission — say the line now
+        if (voice.blocked && voice.on && voice.lastText) { voice.speak(voice.lastText); return; }
+        voice.setOn(!voice.on);
+      });
     });
     voice.setOn(voice.on);
   },
