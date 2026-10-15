@@ -154,6 +154,7 @@ export function levelForScore(score, total) {
 export function rewardForLevel(level, seed) {
   const tierDef = REWARD_TIERS[level];
   if (!tierDef) return null;
+  // legacy seed name from before the Whale Union rename: keep it, or rewards reshuffle
   const rand = seed ? seededRandom(`ledger-quest-reward:${seed}`) : Math.random;
   const variant = tierDef.variants[Math.floor(rand() * tierDef.variants.length)] || tierDef.variants[0];
   return { score: tierDef.score, tier: tierDef.tier, title: variant.title, note: variant.note };

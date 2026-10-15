@@ -138,7 +138,7 @@ function buildAdminMessage(ctx, reward) {
   const who = ctx.from.username ? `@${ctx.from.username}` : ctx.from.first_name || "без имени";
   const tier = rewardInfo(reward)?.tier;
   return (
-    `🎁 Выигрыш в Ledger Quest\n\n` +
+    `🎁 Выигрыш в Whale Union Quest\n\n` +
     `Пользователь: ${who}\n` +
     `Telegram ID: ${ctx.from.id}\n` +
     `Награда: ${reward}` + (tier ? ` (${tier})` : "")
@@ -148,7 +148,7 @@ function buildAdminMessage(ctx, reward) {
 // Message pre-filled in the user's own chat with the admin — no need to
 // repeat the user's name/id here, Telegram already shows who's sending it.
 function buildClaimMessage(reward) {
-  return `Хочу забрать награду в Ledger Quest 🎁\nВыиграл: ${reward}`;
+  return `Хочу забрать награду в Whale Union Quest 🎁\nВыиграл: ${reward}`;
 }
 
 function adminLinkKeyboard(reward) {
@@ -225,7 +225,7 @@ function resolveCaller(req) {
     }
   }
 
-  return { error: "Открой Ledger Quest через Telegram." };
+  return { error: "Открой Whale Union Quest через Telegram." };
 }
 
 function requireCaller(req, res, next) {
@@ -406,7 +406,7 @@ async function configureBot() {
   });
 
   await bot.telegram.setMyCommands([
-    { command: "start", description: "Запустить Ledger Quest" },
+    { command: "start", description: "Запустить Whale Union Quest" },
     { command: "quest", description: "Открыть квест дня" },
     { command: "stats", description: "Моя статистика" }
   ]);
@@ -451,12 +451,12 @@ bot.start(async ctx => {
   }
 
   await ctx.reply(
-    `⚡ LEDGER QUEST\n\n` +
+    `🐋 WHALE UNION QUEST\n\n` +
     `Пять вопросов. Один квест в день.\n` +
     `Проверь знания о рынках, крипте, рисках и трейдинге.\n\n` +
     `Чем больше верных ответов, тем круче награда. Твой квест уже ждёт.`,
     Markup.inlineKeyboard([
-      Markup.button.webApp("🚀 Открыть Ledger Quest", WEB_APP_URL)
+      Markup.button.webApp("🐋 Открыть Whale Union Quest", WEB_APP_URL)
     ])
   );
 });
@@ -542,7 +542,7 @@ bot.command("stats", async ctx => {
     ? `\nДо ранга «${rank.nextName}»: ${rank.xpToNext} XP`
     : `\nМаксимальный ранг!`;
   await ctx.reply(
-    `🏆 СТАТИСТИКА LEDGER QUEST\n\n` +
+    `🏆 СТАТИСТИКА WHALE UNION QUEST\n\n` +
     `Ранг: ${rank.icon} ${rank.name}\n` +
     `Опыт: ${user.xp} XP${nextLine}\n` +
     `Сегодня: ${user.score} из ${total}\n` +
@@ -608,7 +608,7 @@ async function main() {
   }
 
   app.listen(PORT, async () => {
-    console.log(`Ledger Quest running on port ${PORT}`);
+    console.log(`Whale Union Quest running on port ${PORT}`);
     try {
       await initBotUsername();
       await configureBot();

@@ -426,7 +426,7 @@ function setArenaSwipeLock(on) {
 function openArena() {
   if (!arenaFrame) {
     arenaFrame = document.createElement("iframe");
-    arenaFrame.title = "Ledger Quest Arena";
+    arenaFrame.title = "Whale Union Quest Arena";
     arenaFrame.allow = "fullscreen";
     arenaFrame.src = "/arena/" + (tg?.initData ? "#tgWebAppData=" + encodeURIComponent(tg.initData) : "");
     // the loader sits UNDER the frame (z-index) so it can never block taps;
@@ -736,8 +736,8 @@ function claimReward() {
 init().catch(err => {
   console.error(err);
   const box = document.createElement("div");
-  box.style.cssText = "color:#fff;font-family:Inter,sans-serif;padding:30px;background:#080b0d;min-height:100vh";
-  box.innerHTML = `<h2>Ledger Quest</h2><p style="color:#9aa">Не удалось запустить приложение. Закрой его и открой снова.</p><p style="color:#f77;font-size:12px"></p>`;
+  box.style.cssText = "color:#fff;font-family:Inter,sans-serif;padding:30px;background:#0B1120;min-height:100vh";
+  box.innerHTML = `<h2>Whale Union Quest</h2><p style="color:#9aa">Не удалось запустить приложение. Закрой его и открой снова.</p><p style="color:#f77;font-size:12px"></p>`;
   box.lastElementChild.textContent = err.message;
   document.body.replaceChildren(box);
 });
