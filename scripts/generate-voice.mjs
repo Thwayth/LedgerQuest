@@ -16,7 +16,7 @@
      --dry    list the lines and keys, generate nothing
      --fake   write short test tones instead of calling ElevenLabs (needs ffmpeg)
    Env:
-     ELEVENLABS_MODEL   default eleven_multilingual_v2
+     ELEVENLABS_MODEL   default eleven_v4 (Russian supported); e.g. eleven_multilingual_v2
      FORCE=1            re-voice every line (e.g. after changing the voice)
    ====================================================================== */
 import fs from "fs";
@@ -75,20 +75,33 @@ function allLines(LINES) {
   return [...out].filter(t => voiceText(t));
 }
 
+// v3/v4 models take coarse stability presets (Creative 0 / Natural 0.5 /
+// Robust 1); older ones take the fine-grained set.
+function voiceSettings(model) {
+  return /eleven_v[34]/.test(model)
+    ? { stability: 0.5, similarity_boost: 0.8 }
+    : { stability: 0.45, similarity_boost: 0.8, style: 0.35, use_speaker_boost: true };
+}
+let sendSettings = true; // switched off if the model rejects them
+
 async function elevenlabs(text, { key, voiceId, model }) {
   const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_64`;
   for (let attempt = 1; attempt <= 5; attempt++) {
+    const body = { text, model_id: model };
+    if (sendSettings) { body.voice_settings = voiceSettings(model); body.language_code = "ru"; }
     const res = await fetch(url, {
       method: "POST",
       headers: { "xi-api-key": key, "content-type": "application/json", accept: "audio/mpeg" },
-      body: JSON.stringify({
-        text,
-        model_id: model,
-        voice_settings: { stability: 0.45, similarity_boost: 0.8, style: 0.35, use_speaker_boost: true }
-      })
+      body: JSON.stringify(body)
     });
     if (res.ok) return Buffer.from(await res.arrayBuffer());
     const detail = (await res.text()).slice(0, 300);
+    // a model that doesn't accept these settings / language hint: retry plain
+    if ((res.status === 400 || res.status === 422) && sendSettings) {
+      console.warn(`  ${res.status} (${detail.slice(0, 120)}), retrying with default voice settings`);
+      sendSettings = false;
+      continue;
+    }
     if (res.status === 429 || res.status >= 500) {
       console.warn(`  ${res.status}, retry ${attempt}/5 …`);
       await new Promise(r => setTimeout(r, 3000 * attempt));
@@ -122,7 +135,7 @@ async function main() {
   const key = process.env.ELEVENLABS_API_KEY;
   // no Voice ID given → keep the voice used last time
   const voiceId = (process.env.ELEVENLABS_VOICE_ID || "").trim() || (old.voiceId !== "fake" ? old.voiceId : "");
-  const model = process.env.ELEVENLABS_MODEL || "eleven_multilingual_v2";
+  const model = (process.env.ELEVENLABS_MODEL || "").trim() || "eleven_v4";
   if (!FAKE && (!key || !voiceId)) {
     const msg = !key ? "ELEVENLABS_API_KEY is not set" : "No Voice ID: pass ELEVENLABS_VOICE_ID once";
     // the automatic run (remarks changed) must not fail before setup is done
