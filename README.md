@@ -165,7 +165,7 @@ Every remark in `LINES` (`public/app.js`) has an mp3 in `public/assets/voice/`, 
 of its text and listed in `manifest.json`. A remark without a file is shown silently.
 The 🔊 button on the whale's stage mutes/unmutes (remembered per device).
 
-The files are generated with ElevenLabs by the **Whale voice** GitHub Action:
+The files are generated with ElevenLabs (model `eleven_v4` by default) by the **Whale voice** GitHub Action:
 1. Repo → **Settings → Secrets and variables → Actions → New repository secret**:
    name `ELEVENLABS_API_KEY`, value = your ElevenLabs API key.
 2. **Actions → Whale voice → Run workflow**, paste the **Voice ID** once.
