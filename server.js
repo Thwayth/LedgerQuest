@@ -408,8 +408,64 @@ async function configureBot() {
   await bot.telegram.setMyCommands([
     { command: "start", description: "Запустить Whale Union Quest" },
     { command: "quest", description: "Открыть квест дня" },
+    { command: "arena", description: "Играть в Арену" },
     { command: "stats", description: "Моя статистика" }
   ]);
+
+  // Text shown in an empty chat BEFORE the user taps "Start" (and in the
+  // bot's profile). Optional: a failure here must not stop the bot.
+  try {
+    await bot.telegram.callApi("setMyDescription", { description: BOT_DESCRIPTION });
+    await bot.telegram.callApi("setMyShortDescription", { short_description: BOT_SHORT_DESCRIPTION });
+  } catch (err) {
+    console.error("Could not set bot description:", err.message);
+  }
+}
+
+const BOT_DESCRIPTION =
+  "🐋 Whale Union Quest — ежедневный квест для трейдеров и мини-игра «Арена».\n\n" +
+  "🧠 5 вопросов в день о рынках и крипте: опыт, серии и ранги.\n" +
+  "🎯 Арена: 8 уровней с рогаткой, звёзды дают бонус к депозиту до +5%.\n" +
+  "🎁 Награды за квест: от гайдов и разборов до VIP-доступа.\n\n" +
+  "Нажми «Старт», чтобы начать.";
+const BOT_SHORT_DESCRIPTION =
+  "Квест для трейдеров и мини-игра «Арена». Награды каждый день и бонус к депозиту до +5%.";
+
+// Mini App URL that opens straight on a tab (?tab=arena), keeping any
+// query WEB_APP_URL already has.
+function webAppUrlFor(tab) {
+  const url = new URL(WEB_APP_URL);
+  url.searchParams.set("tab", tab);
+  return url.toString();
+}
+
+function escapeHtml(text) {
+  return String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function welcomeKeyboard() {
+  return Markup.inlineKeyboard([
+    [Markup.button.webApp("🧠 Квест дня", WEB_APP_URL), Markup.button.webApp("🎯 Арена", webAppUrlFor("arena"))]
+  ]);
+}
+
+function welcomeMessage(firstName) {
+  const name = firstName ? `, ${escapeHtml(firstName)}` : "";
+  return (
+    `🐋 <b>Whale Union Quest</b>\n\n` +
+    `Привет${name}! Здесь ты прокачиваешь трейдерское чутьё и забираешь бонусы.\n\n` +
+    `🧠 <b>Квест дня</b>\n` +
+    `5 вопросов о рынках, крипте и риск-менеджменте, каждый день новые. ` +
+    `+${XP_PER_CORRECT} XP за верный ответ, серии дней подряд и ранги — от «Новичка» до «Кита» 🐋\n\n` +
+    `🎯 <b>Арена</b>\n` +
+    `Мини-игра с рогаткой: 8 уровней, сбивай башни и собирай монеты. ` +
+    `Чем точнее выстрелы, тем больше звёзд.\n\n` +
+    `🎁 <b>Бонусы</b>\n` +
+    `• <b>Награда дня</b> за квест: чем больше верных ответов, тем она круче — ` +
+    `от гайдов и разборов от аналитиков до сигналов и VIP-доступа. Высокий ранг повышает награду.\n` +
+    `• <b>Бонус к депозиту</b> в Арене: от +0,1% до +0,5% за каждую звезду, всего до +5% к пополнению.\n\n` +
+    `Выбирай, с чего начать 👇`
+  );
 }
 
 async function initBotUsername() {
@@ -450,14 +506,13 @@ bot.start(async ctx => {
     return;
   }
 
+  await ctx.reply(welcomeMessage(ctx.from?.first_name), { parse_mode: "HTML", ...welcomeKeyboard() });
+});
+
+bot.command("arena", async ctx => {
   await ctx.reply(
-    `🐋 WHALE UNION QUEST\n\n` +
-    `Пять вопросов. Один квест в день.\n` +
-    `Проверь знания о рынках, крипте, рисках и трейдинге.\n\n` +
-    `Чем больше верных ответов, тем круче награда. Твой квест уже ждёт.`,
-    Markup.inlineKeyboard([
-      Markup.button.webApp("🐋 Открыть Whale Union Quest", WEB_APP_URL)
-    ])
+    "🎯 Арена ждёт: 8 уровней, звёзды за меткость и бонус к депозиту до +5%.",
+    Markup.inlineKeyboard([Markup.button.webApp("🎯 Играть", webAppUrlFor("arena"))])
   );
 });
 

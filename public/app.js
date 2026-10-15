@@ -405,6 +405,12 @@ async function init() {
   });
   $("top-pill").onclick = () => openScreen("profile-screen");
   $("top-pill").onkeydown = e => { if (e.key === "Enter" || e.key === " ") openScreen("profile-screen"); };
+
+  // Deep link straight to a tab: the bot's "🎯 Арена" button opens
+  // WEB_APP_URL?tab=arena; a t.me/<bot>?startapp=arena link works too.
+  let startTab = null;
+  try { startTab = new URLSearchParams(location.search).get("tab") || tg?.initDataUnsafe?.start_param || null; } catch {}
+  if (startTab === "arena") openScreen("arena-screen");
 }
 
 // ---------- Arena tab ----------
