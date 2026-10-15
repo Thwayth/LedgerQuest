@@ -107,7 +107,11 @@ async function elevenlabs(text, { key, voiceId, model }) {
       await new Promise(r => setTimeout(r, 3000 * attempt));
       continue;
     }
-    throw new Error(`ElevenLabs ${res.status}: ${detail}`);
+    const hint = res.status === 401 ? " — check the ELEVENLABS_API_KEY secret (and its Text to Speech permission)"
+      : res.status === 404 ? " — Voice ID not found: add the voice to My Voices and copy its ID again"
+      : res.status === 402 || /quota/i.test(detail) ? " — ElevenLabs credits/quota exhausted"
+      : "";
+    throw new Error(`ElevenLabs ${res.status}${hint}: ${detail}`);
   }
   throw new Error("ElevenLabs: too many retries");
 }
@@ -137,7 +141,8 @@ async function main() {
   const voiceId = (process.env.ELEVENLABS_VOICE_ID || "").trim() || (old.voiceId !== "fake" ? old.voiceId : "");
   const model = (process.env.ELEVENLABS_MODEL || "").trim() || "eleven_v4";
   if (!FAKE && (!key || !voiceId)) {
-    const msg = !key ? "ELEVENLABS_API_KEY is not set" : "No Voice ID: pass ELEVENLABS_VOICE_ID once";
+    const msg = !key ? "ELEVENLABS_API_KEY is not set — add it under Settings → Secrets and variables → Actions"
+      : "No Voice ID — run the workflow once with the Voice ID field filled in";
     // the automatic run (remarks changed) must not fail before setup is done
     if (process.env.GITHUB_EVENT_NAME === "push") { console.log(`Skipping voice: ${msg}.`); return; }
     throw new Error(msg);
@@ -168,4 +173,10 @@ async function main() {
   console.log(`done: ${made} new, ${entries.length} total`);
 }
 
-main().catch(err => { console.error(err.message); process.exit(1); });
+main().catch(err => {
+  const msg = String(err.message || err).replace(/sk_[A-Za-z0-9]+/g, "sk_***");
+  console.error(msg);
+  // shows up in the run's Summary → Annotations on GitHub
+  if (process.env.GITHUB_ACTIONS) console.log(`::error title=Whale voice::${msg.replace(/\r?\n/g, " ")}`);
+  process.exit(1);
+});
