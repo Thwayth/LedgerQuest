@@ -11,6 +11,7 @@ import { questionsForDay } from "./questions.js";
 import { REWARD_TIERS, rewardInfo, exampleTitle } from "./rewards.js";
 import { rankForXp, boostedRewardForScore } from "./ranks.js";
 import { createArenaRouter, createArenaStore } from "./arena-api.js";
+import { startCopyToNewDb } from "./copy-db.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -674,6 +675,7 @@ async function main() {
   });
 
   launchBotWithRetry();
+  startCopyToNewDb();
 }
 
 main().catch(error => {
