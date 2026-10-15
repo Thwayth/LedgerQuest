@@ -3,19 +3,23 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Ledger Quest Arena</title>
+<title>Whale Union Quest Arena</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --cyan:#22e6ff; --magenta:#ff2bd6; --violet:#b388ff; --gold:#ffcc33;
+    /* Whale Union chrome. The old names are kept so every rule below still
+       resolves; only the game WORLD (canvas) keeps its neon palette. */
+    --cyan:#60A5FA; --magenta:#3B82F6; --violet:#94A3B8; --gold:#ffcc33;
+    --wu-ink:#0B1120; --wu-card:#111827; --wu-line:rgba(148,163,184,.16);
+    --wu-blue:#3B82F6; --wu-blue-deep:#2563EB; --wu-up:#22C55E;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{margin:0; height:100%; overflow:hidden; background:#0d0620; overscroll-behavior:none;}
+  html,body{margin:0; height:100%; overflow:hidden; background:#0B1120; overscroll-behavior:none;}
   body{
-    font-family:"Segoe UI", Roboto, system-ui, sans-serif;
-    color:#eaf6ff;
+    font-family:Inter, "Segoe UI", Roboto, system-ui, sans-serif;
+    color:#e2e8f0;
     touch-action:none; user-select:none;
   }
   /* #stage fills the whole window and centers the single 9:16 #app box.
@@ -26,11 +30,11 @@
   #stage{
     position:fixed; inset:0;
     display:flex; align-items:center; justify-content:center;
-    background:#0d0620; overflow:hidden;
+    background:#0B1120; overflow:hidden;
   }
   #app{
     position:relative;
-    background:#0d0620; overflow:hidden;
+    background:#0B1120; overflow:hidden;
   }
   .screen{position:absolute; inset:0; display:none; flex-direction:column;}
   .screen.active{display:flex;}
@@ -38,7 +42,7 @@
   /* ---------- MENU (stage 2) — level 1's real scene, rendered once by the
      game's own renderer (createScene snapshot mode), blurred/darkened behind
      everything; content scrolls in .menu-scroll above it. ---------- */
-  #levels-wrap{background:#0d0620;}
+  #levels-wrap{background:#0B1120;}
   #menu-bg{
     position:absolute; inset:-14px; width:calc(100% + 28px); height:calc(100% + 28px);
     filter:blur(5px) brightness(.42) saturate(1.2); opacity:0; transition:opacity .6s;
@@ -48,8 +52,8 @@
   .menu-shade{
     position:absolute; inset:0; pointer-events:none;
     background:
-      radial-gradient(120% 60% at 50% 0%, rgba(179,136,255,.18), transparent 60%),
-      linear-gradient(180deg, rgba(13,6,32,.25) 0%, rgba(13,6,32,.55) 45%, rgba(13,6,32,.85) 100%);
+      radial-gradient(120% 60% at 50% 0%, rgba(59,130,246,.22), transparent 60%),
+      linear-gradient(180deg, rgba(11,17,32,.35) 0%, rgba(11,17,32,.7) 45%, rgba(11,17,32,.92) 100%);
   }
   .menu-scroll{
     position:relative; flex:1; overflow-y:auto; overflow-x:hidden;
@@ -58,25 +62,20 @@
   }
   .menu-scroll::-webkit-scrollbar{display:none;}
 
-  /* neon logo */
-  .logo{text-align:center; margin:4px 0 14px; animation:fadeDown .6s ease-out both;}
+  /* Whale Union logo: steel whale tail + spaced caps (same as the exchange app) */
+  .logo{text-align:center; margin:2px 0 14px; animation:fadeDown .6s ease-out both;}
+  .logo-mark{display:block; width:64px; height:64px; margin:0 auto 8px; object-fit:contain;
+    filter:drop-shadow(0 8px 22px rgba(59,130,246,.55));}
   .logo-main{
-    font-family:"Russo One","Segoe UI",sans-serif; font-size:30px; letter-spacing:3px; line-height:1;
-    color:#d9fbff;
-    text-shadow:0 0 4px #fff, 0 0 10px var(--cyan), 0 0 22px var(--cyan), 0 0 42px rgba(34,230,255,.6);
+    font-family:Inter,"Segoe UI",sans-serif; font-weight:700; font-size:22px; letter-spacing:.18em; line-height:1;
+    padding-left:.18em; color:#e2e8f0;
   }
   .logo-sub{
     display:inline-flex; align-items:center; gap:10px; margin-top:8px;
-    font-family:"Russo One","Segoe UI",sans-serif; font-size:17px; letter-spacing:9px; padding-left:9px;
-    color:#ffd6f6;
-    text-shadow:0 0 4px #fff, 0 0 10px var(--magenta), 0 0 24px var(--magenta);
-    animation:neonFlicker 5s infinite;
+    font-family:Inter,"Segoe UI",sans-serif; font-weight:700; font-size:11px; letter-spacing:.42em; padding-left:.42em;
+    color:var(--cyan);
   }
-  .logo-sub i{display:block; width:26px; height:0; border-top:2px solid var(--magenta); box-shadow:0 0 8px var(--magenta);}
-  @keyframes neonFlicker{
-    0%,18%,22%,62%,64%,100%{opacity:1;}
-    20%,63%{opacity:.45;}
-  }
+  .logo-sub i{display:block; width:22px; height:0; border-top:1px solid rgba(96,165,250,.6);}
   @keyframes fadeDown{from{opacity:0; transform:translateY(-10px);} to{opacity:1; transform:none;}}
   @keyframes cardIn{from{opacity:0; transform:translateY(18px) scale(.94);} to{opacity:1; transform:none;}}
   @keyframes shakeX{0%,100%{transform:none;} 20%,60%{transform:translateX(-6px);} 40%,80%{transform:translateX(6px);}}
@@ -84,28 +83,27 @@
   /* profile plate */
   .profile{
     display:flex; align-items:center; gap:12px; padding:12px 14px; margin-bottom:6px;
-    border-radius:16px; border:1px solid rgba(179,136,255,.45);
-    background:linear-gradient(135deg, rgba(40,20,70,.82), rgba(14,8,32,.82));
-    box-shadow:0 0 18px rgba(179,136,255,.22), 0 0 0 1px rgba(0,0,0,.35) inset;
+    border-radius:16px; border:1px solid var(--wu-line);
+    background:rgba(17,24,39,.88); backdrop-filter:blur(8px);
+    box-shadow:0 0 0 1px rgba(59,130,246,.18), 0 12px 40px -12px rgba(59,130,246,.45);
     animation:cardIn .5s .08s ease-out both;
   }
   .pf-ava{
     flex:none; width:44px; height:44px; border-radius:50%;
     display:flex; align-items:center; justify-content:center;
-    font-family:"Russo One",sans-serif; font-size:20px; color:#fff;
-    border:2px solid var(--cyan); box-shadow:0 0 10px var(--cyan), 0 0 10px var(--cyan) inset;
-    background:radial-gradient(circle at 35% 30%, #3a2a6a, #120a26);
+    font-family:Inter,sans-serif; font-weight:700; font-size:18px; color:var(--cyan);
+    border:1px solid var(--wu-line); background:var(--wu-card);
   }
   .pf-body{flex:1; min-width:0;}
   .pf-row{display:flex; align-items:baseline; justify-content:space-between; gap:8px;}
   .pf-name{font-weight:800; font-size:15px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .pf-stars{font-family:"Russo One",sans-serif; font-size:15px; color:var(--gold); text-shadow:0 0 8px rgba(255,204,51,.7); white-space:nowrap;}
+  .pf-stars{font-family:Inter,sans-serif; font-weight:700; font-size:15px; color:var(--gold); text-shadow:0 0 8px rgba(255,204,51,.7); white-space:nowrap;}
   .pf-stars small{color:#b9a46a; font-size:12px;}
-  .pf-bonus-label{font-size:11px; color:#9aa4c4; margin-top:6px;}
-  .pf-bonus{font-family:"Russo One",sans-serif; font-size:15px; color:#6cffb0; text-shadow:0 0 8px rgba(61,255,154,.6);}
-  .pf-bonus small{font-family:"Segoe UI",sans-serif; font-size:11px; color:#9aa4c4; text-shadow:none;}
+  .pf-bonus-label{font-size:11px; color:#94a3b8; margin-top:6px;}
+  .pf-bonus{font-family:Inter,sans-serif; font-weight:700; font-size:15px; color:var(--wu-up);}
+  .pf-bonus small{font-family:Inter,sans-serif; font-weight:400; font-size:11px; color:#94a3b8; text-shadow:none;}
   .pf-bar{height:5px; border-radius:3px; margin-top:5px; background:rgba(255,255,255,.08); overflow:hidden;}
-  .pf-bar > div{height:100%; width:0; border-radius:3px; background:linear-gradient(90deg,#3dff9a,#22e6ff); box-shadow:0 0 8px #3dff9a; transition:width .8s ease-out;}
+  .pf-bar > div{height:100%; width:0; border-radius:3px; background:linear-gradient(90deg,var(--wu-up),var(--cyan)); transition:width .8s ease-out;}
 
   /* difficulty sections — each sets --sec (its neon color) for its cards */
   .sec{margin-top:18px;}
@@ -114,44 +112,42 @@
     animation:cardIn .45s ease-out both;
   }
   .sec-title{
-    font-family:"Russo One",sans-serif; font-size:15px; letter-spacing:2px; color:#fff;
-    text-shadow:0 0 6px var(--sec), 0 0 16px var(--sec);
+    font-family:Inter,sans-serif; font-weight:700; font-size:13px; letter-spacing:.16em; color:var(--sec);
   }
-  .sec-line{flex:1; height:0; border-top:1px dashed var(--sec); opacity:.6;}
-  .sec-info{font-size:10.5px; color:#b6bdd8; white-space:nowrap;}
+  .sec-line{flex:1; height:0; border-top:1px solid var(--sec); opacity:.3;}
+  .sec-info{font-size:10.5px; color:#94a3b8; white-space:nowrap;}
   .sec-info b{color:var(--sec); font-weight:700;}
   .sec-grid{display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:10px;}
 
   .lv-card{
     position:relative; border-radius:14px; padding:8px 8px 9px; cursor:pointer;
-    background:linear-gradient(165deg, rgba(30,16,56,.92), rgba(10,6,24,.94));
-    border:1.5px solid var(--sec);
-    box-shadow:0 0 10px rgba(0,0,0,.5), 0 0 0 1px rgba(0,0,0,.4) inset;
-    box-shadow:0 0 12px color-mix(in srgb, var(--sec) 45%, transparent), 0 0 0 1px rgba(0,0,0,.4) inset;
+    background:rgba(17,24,39,.94);
+    border:1px solid color-mix(in srgb, var(--sec) 45%, rgba(148,163,184,.16));
+    box-shadow:0 10px 30px -14px color-mix(in srgb, var(--sec) 60%, transparent);
     animation:cardIn .5s ease-out both;
     transition:transform .15s;
   }
   .lv-card:active{transform:scale(.97);}
-  .lv-card.locked{border-color:rgba(150,150,180,.28); box-shadow:none; cursor:default;}
+  .lv-card.locked{border-color:var(--wu-line); box-shadow:none; cursor:default;}
   .lv-card.locked:active{transform:none;}
   .lv-card.in{animation:none;}
   .lv-card.shake{animation:shakeX .35s ease-in-out;}
   .lv-top{display:flex; align-items:baseline; gap:6px; margin:0 2px 6px;}
-  .lv-num{font-family:"Russo One",sans-serif; font-size:15px; color:#fff; text-shadow:0 0 8px var(--sec);}
-  .lv-name{font-size:11.5px; font-weight:700; color:#dfe6ff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .lv-card.locked .lv-num{text-shadow:none; color:#8a88a6;}
-  .lv-card.locked .lv-name{color:#7d7b98;}
+  .lv-num{font-family:Inter,sans-serif; font-weight:800; font-size:15px; color:var(--sec);}
+  .lv-name{font-size:11.5px; font-weight:600; color:#e2e8f0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .lv-card.locked .lv-num{color:#64748b;}
+  .lv-card.locked .lv-name{color:#64748b;}
   .lv-thumb{
     position:relative; border-radius:9px; overflow:hidden; aspect-ratio:9/5;
-    background:linear-gradient(180deg,#24124a,#0f0824);
-    border:1px solid rgba(255,255,255,.08);
+    background:linear-gradient(180deg,#152040,#0B1120);
+    border:1px solid var(--wu-line);
   }
   .lv-thumb canvas{position:absolute; inset:0; width:100%; height:100%; opacity:0; transition:opacity .4s;}
   .lv-thumb canvas.ready{opacity:1;}
   .lv-card.locked .lv-thumb canvas{filter:grayscale(.85) brightness(.45);}
   .lv-mid{display:flex; align-items:center; justify-content:space-between; gap:4px; margin-top:6px;}
-  .lv-chips{display:flex; gap:6px; font-size:10px; font-weight:700; color:#c9d2ee; white-space:nowrap;}
-  .lv-card.locked .lv-chips{color:#7d7b98;}
+  .lv-chips{display:flex; gap:6px; font-size:10px; font-weight:700; color:#cbd5e1; white-space:nowrap;}
+  .lv-card.locked .lv-chips{color:#64748b;}
   .lv-lock{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; color:#c9c7e6; font-size:10px; font-weight:700;}
   .lv-lock svg{width:26px; height:26px; filter:drop-shadow(0 0 6px rgba(201,199,230,.5));}
   .lv-stars{display:flex; gap:3px; font-size:16px; line-height:1;}
@@ -159,16 +155,16 @@
   .lv-stars span.on{color:var(--gold); text-shadow:0 0 6px rgba(255,204,51,.9), 0 0 14px rgba(255,170,40,.6);}
   .lv-foot{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:4px; margin-top:6px;}
   .lv-foot > *{flex:none;}
-  .lv-best{font-size:10px; color:#9aa4c4; white-space:nowrap;}
+  .lv-best{font-size:10px; color:#94a3b8; white-space:nowrap;}
   .lv-best b{color:#eaf6ff; font-weight:700;}
   .lv-badge{
     font-size:9.5px; font-weight:800; white-space:nowrap; padding:2px 6px; border-radius:8px;
     color:var(--sec); border:1px solid var(--sec); background:rgba(255,255,255,.05);
     background:color-mix(in srgb, var(--sec) 12%, transparent);
   }
-  .lv-card.locked .lv-badge{color:#7d7b98; border-color:rgba(150,150,180,.3); background:none;}
+  .lv-card.locked .lv-badge{color:#64748b; border-color:rgba(150,150,180,.3); background:none;}
   @media (prefers-reduced-motion: reduce){
-    .logo,.profile,.sec-head,.lv-card,.logo-sub{animation:none !important;}
+    .logo,.profile,.sec-head,.lv-card{animation:none !important;}
   }
 
   /* ---------- game screen — #game-wrap IS #app's full size now, no inner wrapper ---------- */
@@ -193,7 +189,7 @@
   }
   .icon-btn svg{
     width:72%; height:72%;
-    filter:drop-shadow(0 0 3px var(--cyan)) drop-shadow(0 0 9px var(--cyan));
+    filter:drop-shadow(0 2px 6px rgba(11,17,32,.9)) drop-shadow(0 0 8px rgba(59,130,246,.55));
   }
   /* restart icon: an SVG drawn exactly like the back arrow (same .icon-btn
      svg rule: 72% of the 9%-of-screen-width box), never a text glyph sized
@@ -222,33 +218,33 @@
      of frame or run off-screen. The values below are just a safe fallback
      for the instant before the first JS pass runs. */
   .level-pill .txt{
-    font-family:"Russo One","Segoe UI",sans-serif;
-    font-weight:400; letter-spacing:3px; font-size:28px; color:#e07aff;
-    text-shadow:0 0 10px #b44dff, 0 0 22px #b44dff; white-space:nowrap;
+    font-family:Inter,"Segoe UI",sans-serif;
+    font-weight:800; letter-spacing:3px; font-size:28px; color:#e2e8f0;
+    text-shadow:0 2px 10px rgba(11,17,32,.9), 0 0 18px rgba(59,130,246,.55); white-space:nowrap;
   }
 
   .hint-toast{
     position:absolute; left:50%; bottom:3%; transform:translateX(-50%); z-index:5;
-    background:rgba(10,6,20,.65); border:1px solid var(--cyan); border-radius:20px;
-    padding:7px 15px; font-size:11px; color:#dff; white-space:nowrap;
-    box-shadow:0 0 12px rgba(34,230,255,.3); transition:opacity .25s;
+    background:rgba(11,17,32,.78); border:1px solid rgba(96,165,250,.45); border-radius:20px;
+    padding:7px 15px; font-size:11px; color:#e2e8f0; white-space:nowrap;
+    box-shadow:0 8px 24px -10px rgba(59,130,246,.6); transition:opacity .25s;
   }
 
   /* ---------- result overlay — display:none when hidden, not just opacity ---------- */
   #result-overlay{
     position:absolute; inset:0; z-index:10; display:none; align-items:center; justify-content:center;
-    background:rgba(5,4,13,.72); backdrop-filter:blur(2px);
+    background:rgba(6,10,20,.74); backdrop-filter:blur(3px);
   }
   #result-overlay.show{display:flex; pointer-events:auto;}
   .result-card{
     width:84%; max-width:320px; text-align:center; padding:26px 20px;
-    background:linear-gradient(160deg,#1c1030,#0c0620);
-    border:1.5px solid var(--cyan); border-radius:18px;
-    box-shadow:0 0 30px rgba(34,230,255,.35);
+    background:var(--wu-card);
+    border:1px solid var(--wu-line); border-radius:18px;
+    box-shadow:0 0 0 1px rgba(59,130,246,.25), 0 24px 60px -18px rgba(59,130,246,.55);
   }
   .result-icon{font-size:42px; margin-bottom:6px;}
   .result-title{font-size:19px; font-weight:800; color:#fff;}
-  .result-sub{font-size:12px; color:#9aa4c4; margin-top:6px;}
+  .result-sub{font-size:12px; color:#94a3b8; margin-top:6px;}
   .result-stars{display:none; justify-content:center; gap:8px; margin:4px 0 2px; font-size:38px; line-height:1;}
   .result-stars.show{display:flex;}
   .result-stars span{color:rgba(255,255,255,.14); transform:scale(.4); opacity:0;}
@@ -257,8 +253,8 @@
   .result-stars.show span:nth-child(3){animation-delay:.44s;}
   .result-stars span.on{color:var(--gold); text-shadow:0 0 10px rgba(255,204,51,.95), 0 0 24px rgba(255,160,40,.7);}
   @keyframes starPop{to{transform:scale(1); opacity:1;}}
-  .result-score{display:none; margin-top:10px; font-family:"Russo One",sans-serif; font-size:20px; color:#fff; text-shadow:0 0 10px var(--cyan);}
-  .result-score small{display:block; font-family:"Segoe UI",sans-serif; font-size:11px; color:#9aa4c4; text-shadow:none; margin-top:3px;}
+  .result-score{display:none; margin-top:10px; font-family:Inter,sans-serif; font-weight:800; font-size:22px; color:#fff; font-variant-numeric:tabular-nums;}
+  .result-score small{display:block; font-family:Inter,sans-serif; font-weight:400; font-size:11px; color:#94a3b8; text-shadow:none; margin-top:3px;}
   .result-score .rec{color:var(--gold); font-weight:800; text-shadow:0 0 8px rgba(255,204,51,.7);}
   /* (stage 3) deposit-bonus panel — filled ONLY from the server's answer */
   .result-reward{
@@ -267,30 +263,30 @@
     font-size:12px; color:#c9d2ee; line-height:1.35;
   }
   .result-reward.show{display:block;}
-  .result-reward .rw-main{font-family:"Russo One","Segoe UI",sans-serif; font-size:20px; color:#6cffb0; text-shadow:0 0 10px rgba(61,255,154,.7);}
-  .result-reward .rw-sub{font-size:11px; color:#9aa4c4; margin-top:2px;}
-  .result-reward.ok{border-color:rgba(61,255,154,.55); background:rgba(61,255,154,.07); box-shadow:0 0 14px rgba(61,255,154,.18);}
+  .result-reward .rw-main{font-family:Inter,"Segoe UI",sans-serif; font-weight:800; font-size:20px; color:var(--wu-up);}
+  .result-reward .rw-sub{font-size:11px; color:#94a3b8; margin-top:2px;}
+  .result-reward.ok{border-color:rgba(34,197,94,.5); background:rgba(34,197,94,.08);}
   .result-reward.info{border-color:rgba(255,204,51,.45); color:#ffe39a;}
   .result-reward.err{border-color:rgba(255,90,120,.55); background:rgba(255,90,120,.07); color:#ffc2cf;}
-  .result-reward.pending{color:#9aa4c4;}
+  .result-reward.pending{color:#94a3b8;}
   .rw-spin{display:inline-block; width:11px; height:11px; margin-right:7px; vertical-align:-1px; border-radius:50%;
     border:2px solid rgba(255,255,255,.2); border-top-color:var(--cyan); animation:rwSpin .8s linear infinite;}
   @keyframes rwSpin{to{transform:rotate(360deg);}}
   .rw-retry{margin-top:7px; padding:5px 14px; border-radius:8px; border:1px solid currentColor; background:none; color:inherit; font-weight:700; font-size:12px; cursor:pointer;}
   .result-btns{display:flex; gap:10px; margin-top:18px;}
   .rbtn{flex:1; padding:11px 0; border-radius:10px; font-weight:700; font-size:13px; cursor:pointer; border:none;}
-  .rbtn.primary{background:linear-gradient(135deg,var(--cyan),var(--violet)); color:#09111c;}
-  .rbtn.ghost{background:transparent; border:1px solid rgba(255,255,255,.25); color:#eaf6ff;}
+  .rbtn.primary{background:linear-gradient(135deg,var(--wu-blue),var(--wu-blue-deep)); color:#fff; box-shadow:0 10px 26px -12px rgba(59,130,246,.8);}
+  .rbtn.ghost{background:transparent; border:1px solid var(--wu-line); color:#e2e8f0;}
 
   /* ---------- (info) "how it works" entry points + sheet ---------- */
   .how-btn{
     display:flex; align-items:center; justify-content:center; gap:8px; width:100%; margin:8px 0 2px;
     padding:10px 12px; border-radius:12px; cursor:pointer;
-    font:700 13px "Segoe UI",Roboto,system-ui,sans-serif; color:#e9dcff;
-    background:rgba(179,136,255,.10); border:1px dashed rgba(179,136,255,.6);
+    font:600 13px Inter,"Segoe UI",Roboto,system-ui,sans-serif; color:#cbd5e1;
+    background:rgba(17,24,39,.75); border:1px solid var(--wu-line);
     animation:cardIn .5s .12s ease-out both;
   }
-  .how-btn svg{width:16px; height:16px; flex:none; color:var(--violet); filter:drop-shadow(0 0 4px var(--violet));}
+  .how-btn svg{width:16px; height:16px; flex:none; color:var(--cyan);}
   .how-btn:active{transform:scale(.98);}
   .profile{cursor:pointer;}
   .rw-link{margin-top:6px; padding:0; border:none; background:none; color:var(--cyan); font-size:11.5px; font-weight:700; text-decoration:underline; text-underline-offset:2px; cursor:pointer;}
@@ -298,43 +294,43 @@
 
   #info-sheet{
     position:absolute; inset:0; z-index:40; display:flex; align-items:flex-end;
-    background:rgba(5,3,14,.72); backdrop-filter:blur(3px);
+    background:rgba(6,10,20,.74); backdrop-filter:blur(3px);
   }
   #info-sheet[hidden]{display:none;}
   .is-panel{
     outline:none; position:relative; width:100%; max-height:92%; display:flex; flex-direction:column;
-    background:linear-gradient(170deg,#1d1036,#0b0620 60%);
-    border:1px solid rgba(179,136,255,.5); border-bottom:none; border-radius:20px 20px 0 0;
-    box-shadow:0 -10px 40px rgba(179,136,255,.25);
+    background:var(--wu-card);
+    border:1px solid var(--wu-line); border-bottom:none; border-radius:20px 20px 0 0;
+    box-shadow:0 -12px 40px -10px rgba(59,130,246,.4);
     animation:sheetUp .32s cubic-bezier(.2,.9,.3,1) both;
   }
   @keyframes sheetUp{from{transform:translateY(40px); opacity:0;} to{transform:none; opacity:1;}}
   .is-head{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:16px 16px 10px; border-bottom:1px solid rgba(255,255,255,.07);}
-  .is-title{font-family:"Russo One","Segoe UI",sans-serif; font-size:18px; letter-spacing:1px; color:#fff; text-shadow:0 0 10px var(--violet);}
+  .is-title{font-family:Inter,"Segoe UI",sans-serif; font-weight:700; font-size:17px; color:#fff;}
   .is-close{width:34px; height:34px; flex:none; border-radius:50%; border:1px solid rgba(255,255,255,.2); background:rgba(255,255,255,.05); color:#eaf6ff; cursor:pointer; display:flex; align-items:center; justify-content:center;}
   .is-close svg{width:16px; height:16px;}
-  .is-body{flex:1; min-height:0; overflow-y:auto; padding:6px 16px 8px; touch-action:pan-y; -webkit-overflow-scrolling:touch; font-size:13px; line-height:1.5; color:#d6dcf2;}
+  .is-body{flex:1; min-height:0; overflow-y:auto; padding:6px 16px 8px; touch-action:pan-y; -webkit-overflow-scrolling:touch; font-size:13px; line-height:1.5; color:#cbd5e1;}
   .is-foot{padding:10px 16px 14px; border-top:1px solid rgba(255,255,255,.07);}
   .is-foot .rbtn{width:100%; padding:12px 0; font-size:14px;}
-  .is-hero{margin:8px 0 4px; padding:12px; border-radius:14px; background:rgba(34,230,255,.06); border:1px solid rgba(34,230,255,.25);}
-  .is-hero b{display:block; font-family:"Russo One","Segoe UI",sans-serif; font-weight:400; font-size:15px; color:#fff; margin-bottom:4px; text-wrap:balance;}
+  .is-hero{margin:8px 0 4px; padding:12px; border-radius:14px; background:rgba(59,130,246,.08); border:1px solid rgba(59,130,246,.3);}
+  .is-hero b{display:block; font-family:Inter,"Segoe UI",sans-serif; font-weight:700; font-size:15px; color:#fff; margin-bottom:4px; text-wrap:balance;}
   .is-sec{margin-top:16px;}
-  .is-h{font-family:"Russo One","Segoe UI",sans-serif; font-size:13px; letter-spacing:1.5px; color:var(--cyan); text-transform:uppercase; margin-bottom:8px;}
+  .is-h{font-family:Inter,"Segoe UI",sans-serif; font-weight:700; font-size:11px; letter-spacing:.16em; color:var(--cyan); text-transform:uppercase; margin-bottom:8px;}
   .is-steps{list-style:none; margin:0; padding:0; display:grid; gap:8px;}
   .is-steps li{display:grid; grid-template-columns:24px 1fr; gap:10px; align-items:start;}
-  .is-steps li > span{width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font:700 12px "Segoe UI",sans-serif; color:#0b0620; background:var(--cyan); box-shadow:0 0 8px var(--cyan);}
-  .is-note{margin-top:8px; font-size:12px; color:#9aa4c4;}
+  .is-steps li > span{width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font:700 12px Inter,sans-serif; color:#fff; background:var(--wu-blue);}
+  .is-note{margin-top:8px; font-size:12px; color:#94a3b8;}
   .is-stars{display:grid; gap:6px;}
   .is-stars div{display:flex; align-items:center; gap:10px;}
   .is-stars i{font-style:normal; flex:none; width:58px; letter-spacing:2px; color:rgba(255,255,255,.18);}
   .is-stars i b{color:var(--gold); text-shadow:0 0 6px rgba(255,204,51,.8);}
   .is-table{width:100%; border-collapse:collapse; font-size:12.5px; font-variant-numeric:tabular-nums;}
-  .is-table th{font-weight:600; font-size:11px; color:#9aa4c4; text-align:right; padding:0 0 6px;}
+  .is-table th{font-weight:600; font-size:11px; color:#94a3b8; text-align:right; padding:0 0 6px;}
   .is-table th:first-child,.is-table td:first-child{text-align:left;}
   .is-table td{padding:7px 0; text-align:right; border-top:1px solid rgba(255,255,255,.07); color:#eaf6ff;}
   .is-table td:first-child{font-weight:700; color:var(--sec);}
   .is-table tr.total td{color:#fff; font-weight:700;}
-  .is-me{margin-top:10px; padding:10px 12px; border-radius:12px; border:1px solid rgba(61,255,154,.4); background:rgba(61,255,154,.06);}
+  .is-me{margin-top:10px; padding:10px 12px; border-radius:12px; border:1px solid rgba(34,197,94,.4); background:rgba(34,197,94,.07);}
   .is-me .pf-bar{margin-top:6px;}
   .is-example{margin-top:8px; padding:10px 12px; border-radius:12px; background:rgba(255,204,51,.07); border:1px solid rgba(255,204,51,.35); color:#ffe9b0;}
   .is-example b{color:#fff;}
@@ -357,8 +353,9 @@
       <div class="menu-shade"></div>
       <div class="menu-scroll" id="menu-scroll">
         <div class="logo">
-          <div class="logo-main">LEDGER QUEST</div>
-          <div class="logo-sub"><i></i>ARENA<i></i></div>
+          <img class="logo-mark" src="/assets/whale-logo.png" alt="">
+          <div class="logo-main">WHALE UNION</div>
+          <div class="logo-sub"><i></i>QUEST · ARENA<i></i></div>
         </div>
         <div class="profile" id="profile">
           <div class="pf-ava" id="pf-ava">И</div>
@@ -445,7 +442,7 @@
 <script>
 /* (2026-10-05) Telegram Mini Apps minimize on a vertical swipe — exactly
    the slingshot's pull-down gesture. Turn that off for the game (Bot API
-   7.7+). When embedded in the Ledger Quest "Арена" tab, the tab does the
+   7.7+). When embedded in the Whale Union Quest "Арена" tab, the tab does the
    same on the parent window and turns it back on when you leave. */
 (function disableTelegramVerticalSwipes(){
   const wins = [window];
@@ -1373,10 +1370,10 @@ function hash01(a){ const v = Math.sin(a*12.9898)*43758.5453; return v - Math.fl
 const REWARDS = { easy:0.1, medium:0.2, hard:0.35, expert:0.5 }; // % per star — mirrors the server config, display only
 const MAX_BONUS = 5.0;                                            // % — mirrors the server cap, display only
 const DIFFICULTY = {
-  easy:   { label:"ЛЁГКИЕ",  dist:"12–14 м", color:"#3dff9a", charges:5, hpMul:0.80, coinValue:1000 },
-  medium: { label:"СРЕДНИЕ", dist:"15–18 м", color:"#22e6ff", charges:4, hpMul:1.00, coinValue:1500 },
-  hard:   { label:"СЛОЖНЫЕ", dist:"19–24 м", color:"#ff2bd6", charges:4, hpMul:1.15, coinValue:2000 },
-  expert: { label:"ЭКСПЕРТ", dist:"24–30 м", color:"#ffb02a", charges:5, hpMul:1.30, coinValue:3000 },
+  easy:   { label:"ЛЁГКИЕ",  dist:"12–14 м", color:"#22C55E", charges:5, hpMul:0.80, coinValue:1000 },
+  medium: { label:"СРЕДНИЕ", dist:"15–18 м", color:"#60A5FA", charges:4, hpMul:1.00, coinValue:1500 },
+  hard:   { label:"СЛОЖНЫЕ", dist:"19–24 м", color:"#F59E0B", charges:4, hpMul:1.15, coinValue:2000 },
+  expert: { label:"ЭКСПЕРТ", dist:"24–30 м", color:"#EF4444", charges:5, hpMul:1.30, coinValue:3000 },
 };
 const TIER_ORDER = ["easy","medium","hard","expert"];
 const LEVEL_TIERS = ["easy","easy","medium","medium","hard","hard","expert","expert"];
@@ -1598,7 +1595,7 @@ window.addEventListener("keydown", (e) => {
 let cssW = 0, cssH = 0, dpr = 1;
 function resizeCanvas(){
   const W = stageEl.clientWidth, H = stageEl.clientHeight;
-  // Hidden (e.g. the Ledger Quest app switched away from the Арена tab, so
+  // Hidden (e.g. the Whale Union Quest app switched away from the Арена tab, so
   // this frame is 0x0): keep the last real size. Rescaling to ~0 broke the
   // running level's rendering (negative radii) and could stop its loop.
   if (W < 50 || H < 50) return;
@@ -1635,7 +1632,7 @@ new ResizeObserver(resizeCanvas).observe(stageEl);
    canvas or the render loop. ---- */
 const titleMeasureCtx = document.createElement("canvas").getContext("2d");
 function measureTitleWidth(text, fontPx, letterSpacingPx){
-  titleMeasureCtx.font = `400 ${fontPx}px "Russo One", "Segoe UI", sans-serif`;
+  titleMeasureCtx.font = `800 ${fontPx}px Inter, "Segoe UI", sans-serif`;
   return titleMeasureCtx.measureText(text).width + letterSpacingPx * Math.max(0, text.length - 1);
 }
 function updateGameLabel(i){
@@ -1838,7 +1835,7 @@ function reportWin(run, facts){
 // TODO(business): confirm how/when the bonus is applied (which deposits,
 // currency, expiry) and edit these lines — they are the only place it's described.
 const BONUS_TERMS = {
-  what: "Бонус — это дополнительный процент к сумме пополнения депозита в Ledger. Накопленный в игре процент добавляется сверху, когда ты пополняешь депозит.",
+  what: "Бонус — это дополнительный процент к сумме пополнения депозита в Whale Union. Накопленный в игре процент добавляется сверху, когда ты пополняешь депозит.",
   exampleDeposit: 1000, exampleBonusPct: 2, currency: "$",
 };
 const INTRO_KEY = "lq_arena_intro_seen_v1";
@@ -1858,7 +1855,7 @@ function renderInfoSheet(){
   infoBody.innerHTML = `
     <div class="is-hero">
       <b>Сбивай неоновые башни и собирай криптомонеты</b>
-      Аркада внутри Ledger Quest: ${LEVELS.length} уровней, звёзды за меткость и бонус к депозиту до ${MAX_BONUS.toFixed(1)}%.
+      Аркада внутри Whale Union Quest: ${LEVELS.length} уровней, звёзды за меткость и бонус к депозиту до ${MAX_BONUS.toFixed(1)}%.
     </div>
 
     <div class="is-sec" id="info-play">
@@ -1905,7 +1902,7 @@ function renderInfoSheet(){
 
     <div class="is-sec" id="info-fair">
       <div class="is-h">Честная игра</div>
-      <div>Бонус считает и начисляет сервер Ledger Quest, а не приложение на телефоне. Он засчитывается только при игре в Telegram. Сервер проверяет каждый результат: слишком быстрые или невозможные прохождения не засчитываются.</div>
+      <div>Бонус считает и начисляет сервер Whale Union Quest, а не приложение на телефоне. Он засчитывается только при игре в Telegram. Сервер проверяет каждый результат: слишком быстрые или невозможные прохождения не засчитываются.</div>
     </div>`;
 }
 

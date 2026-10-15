@@ -270,7 +270,7 @@ function seededRandom(seedStr) {
 // so questions differ between players but stay stable if the same user
 // reopens the app on the same day.
 export function questionsForDay(day, count, userKey = "") {
-  const rand = seededRandom(`ledger-quest:${day}:${userKey}`);
+  const rand = seededRandom(`ledger-quest:${day}:${userKey}`); // legacy seed: keep, or today's quests reshuffle
   const pool = [...QUESTION_POOL];
   for (let i = pool.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));

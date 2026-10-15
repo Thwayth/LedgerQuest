@@ -1,11 +1,11 @@
-# Ledger Quest
+# Whale Union Quest
 
 Telegram Mini App MVP with:
 - Telegram bot
 - Daily 5-question quest, random per player, from a question pool
 - XP and streak
-- Premium fintech UI
-- Ledger Bot character
+- Premium fintech UI in the Whale Union style (navy #0B1120, blue #3B82F6, Inter)
+- Whale Union emblem as the host (custom host portraits supported, see below)
 - Telegram menu button
 - Demo mode in a normal browser
 - **Arena** tab: Angry-Birds-style mini-game with a server-side deposit bonus
@@ -13,11 +13,21 @@ Telegram Mini App MVP with:
 ## 1. Create the bot
 Open @BotFather in Telegram:
 1. `/newbot`
-2. Choose name: `Ledger Quest`
+2. Choose name: `Whale Union Quest`
 3. Choose a username ending in `bot`
 4. Copy the token.
 
 Never publish the token to GitHub.
+
+### Replacing the bot (lost or compromised token)
+1. Create a new bot in @BotFather (steps above) and copy its token.
+2. Render → this service → **Environment** → set `BOT_TOKEN` to the new token → save and redeploy.
+   On start the server reads the bot's username via `getMe()` and sets the menu button and
+   commands itself — no code change is needed.
+3. Revoke the old token: @BotFather → `/mybots` → old bot → **API Token → Revoke**.
+   If the Telegram account that owns the old bot is lost, report the bot to @BotSupport.
+   Changing `BOT_TOKEN` also invalidates every `initData` signed for the old bot, so the
+   server stops accepting requests (incl. arena bonus claims) made through it.
 
 ## 2. Local run
 Install Node.js 20+.
@@ -137,8 +147,8 @@ Options:
 
 ## Avatar emotions
 During the quiz the host reacts with emotions: `neutral`, `thinking`, `happy`,
-`excited`, `sad`, `surprised`. By default it uses a close-up of `ledger-bot.png`
-and shows the mood with the headphone LED color, glow and motion.
+`excited`, `sad`, `surprised`. By default the host is the Whale Union emblem
+(`public/assets/whale-logo.png`); the mood shows as the glow color behind it and its motion.
 
 To give the host real facial expressions, add square portraits (same framing,
 ~720×720) to `public/assets/avatar/<emotion>.jpg`, e.g. `happy.jpg`, `sad.jpg`.

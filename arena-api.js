@@ -1,5 +1,5 @@
 /* ======================================================================
-   Ledger Quest Arena — server side of the deposit bonus (stage 3).
+   Whale Union Quest Arena — server side of the deposit bonus (stage 3).
 
    The ONLY place a bonus is ever computed. The game client (api.js) sends
    raw facts about a won level plus Telegram's signed initData; this module:

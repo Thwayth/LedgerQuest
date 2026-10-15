@@ -1,5 +1,5 @@
 /* ======================================================================
-   Ledger Quest Arena — client API (stage 3).
+   Whale Union Quest Arena — client API (stage 3).
 
    SECURITY MODEL: the client NEVER computes the deposit bonus. It only
    reports what happened in a level (which level, how many shots, how many
@@ -74,7 +74,7 @@
       var w = global.Telegram && global.Telegram.WebApp;
       if (w && typeof w.initData === "string" && w.initData) return w.initData;
     } catch (e) {}
-    // Embedded in the Ledger Quest Mini App's "Арена" tab (same-origin
+    // Embedded in the Whale Union Quest Mini App's "Арена" tab (same-origin
     // iframe): the signed initData lives in the parent window.
     try {
       var pw = global.parent && global.parent !== global && global.parent.Telegram && global.parent.Telegram.WebApp;
