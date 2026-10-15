@@ -1,0 +1,55 @@
+# Voices every whale remark with ElevenLabs and commits the mp3 files.
+#
+# One-time setup (repo → Settings → Secrets and variables → Actions):
+#   Secrets   → ELEVENLABS_API_KEY   your ElevenLabs API key
+# Then: Actions → "Whale voice" → Run workflow → paste the Voice ID.
+# The Voice ID is remembered in public/assets/voice/manifest.json, so later
+# runs (and the automatic run when the remarks in app.js change) reuse it.
+name: Whale voice
+
+on:
+  workflow_dispatch:
+    inputs:
+      voice_id:
+        description: "ElevenLabs Voice ID (пусто — тот же голос, что в прошлый раз)"
+        required: false
+        type: string
+      force:
+        description: "Переозвучить все фразы заново"
+        required: false
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths: ["public/app.js"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: whale-voice
+  cancel-in-progress: false
+
+jobs:
+  voice:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Generate voice
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ inputs.voice_id }}
+          FORCE: ${{ inputs.force && '1' || '0' }}
+        run: node scripts/generate-voice.mjs
+      - name: Commit voice files
+        run: |
+          git config user.name "whale-voice"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/assets/voice
+          if git diff --cached --quiet; then echo "Nothing new to commit"; exit 0; fi
+          git commit -m "Voice: whale lines (${{ github.event_name }})"
+          git pull --rebase origin main
+          git push origin HEAD:main

@@ -68,16 +68,17 @@ const TIER_LABEL = {
 };
 
 // ---------- Avatar ----------
-// A "living" host. Each emotion changes the ear LED and eye glow color,
-// motion and particles; remarks are typed out and react to the category,
+// The host is the Whale (video clips in assets/whale/, see whaleHost below).
+// Each emotion picks a reaction clip, glow color and particles; remarks are
+// typed out, voiced (assets/voice/, if generated) and react to the category,
 // answer speed, streaks, taps and silence.
 
 const pick = list => list[Math.floor(Math.random() * list.length)];
 
 const LINES = {
   greet: {
-    morning: ["Доброе утро. Кофе допит? Тогда начинаем.", "Утро, рынок только просыпает. А ты уже здесь."],
-    day: ["Привет. Пять вопросов, и день станет продуктивнее.", "О, ты вовремя. Я как раз подобрала вопросы."],
+    morning: ["Доброе утро. Кофе допит? Тогда начинаем.", "Утро, рынок только просыпается. А ты уже здесь."],
+    day: ["Привет. Пять вопросов, и день станет продуктивнее.", "О, ты вовремя. Я как раз подобрал вопросы."],
     evening: ["Добрый вечер. Самое время проверить голову.", "Вечерняя сессия? Уважаю."],
     night: ["Не спится? Рынок тоже никогда не спит.", "Ночной трейдер. Проверим, не устал ли мозг."]
   },
@@ -131,8 +132,8 @@ const LINES = {
   ],
   wrongFast: ["Слишком быстро нажал. Рынок наказывает за спешку.", "Поспешил. Читай варианты до конца."],
   wrongAgain: ["Ничего, следующий возьмём.", "Выдыхай. Сейчас отыграемся."],
-  poke: ["Эй! Я вообще‑то работаю.", "Щекотно.", "Это был мой наушник.", "Я не кнопка ответа, если что.", "Хм? Сосредоточься на вопросе."],
-  pokeAngry: ["Всё, я обиделась. На три секунды.", "Ещё раз ткнёшь — поставлю тебе минус XP. Шучу. Наверное."],
+  poke: ["Эй! Киты не любят, когда их тыкают.", "Щекотно.", "Это был мой плавник.", "Я не кнопка ответа, если что.", "Хм? Сосредоточься на вопросе."],
+  pokeAngry: ["Всё, я обиделся. На три секунды.", "Ещё раз ткнёшь — поставлю тебе минус XP. Шучу. Наверное."],
   error: ["Связь пропала. Нажми ответ ещё раз."],
   resultPerfect: ["Идеально. Ни одной ошибки!", "Безупречно. Ты сегодня в форме."],
   resultGood: ["Сильный результат. Завтра добьём до идеала.", "Хорошо сыграно."],
@@ -146,30 +147,199 @@ const MOODS = {
   happy:     { label: "РАДУЕТСЯ",   fx: { glyphs: ["✦", "+"], count: 6, kind: "burst" } },
   excited:   { label: "В ВОСТОРГЕ", fx: { glyphs: ["✦", "★", "🔥"], count: 12, kind: "burst" } },
   proud:     { label: "ГОРДИТСЯ",   fx: { glyphs: ["♛", "✦", "★"], count: 14, kind: "burst" } },
-  sad:       { label: "РАССТРОЕНА", fx: { glyphs: ["·", "|"], count: 8, kind: "rain" } },
-  surprised: { label: "УДИВЛЕНА",   fx: { glyphs: ["!"], count: 2, kind: "float" } },
+  sad:       { label: "РАССТРОЕН",  fx: { glyphs: ["·", "|"], count: 8, kind: "rain" } },
+  surprised: { label: "УДИВЛЁН",    fx: { glyphs: ["!"], count: 2, kind: "float" } },
   worried:   { label: "ВОЛНУЕТСЯ",  fx: { glyphs: ["~"], count: 3, kind: "float" } },
   smug:      { label: "ХИТРИТ",     fx: { glyphs: ["♪"], count: 2, kind: "float" } },
   annoyed:   { label: "ВОРЧИТ",     fx: { glyphs: ["#", "%", "!"], count: 4, kind: "burst" } }
 };
 
-// Optional per-emotion portraits: put public/assets/avatar/<emotion>.jpg
-// (any of the keys in MOODS) and they are used instead of the default close-up.
-const customPortraits = {};
-Object.keys(MOODS).forEach(emotion => {
-  const img = new Image();
-  img.onload = () => { customPortraits[emotion] = img.src; };
-  img.src = `/assets/avatar/${emotion}.jpg`;
-});
+const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-function applyPortrait(frame, emotion) {
-  if (!frame) return;
-  const src = customPortraits[emotion];
-  frame.classList.toggle("custom", Boolean(src));
-  frame.style.backgroundImage = src ? `url("${src}")` : "";
+// ---------- Whale host: video clips ----------
+// Clips live in /assets/whale/ (cut from the Kling renders, no audio):
+//   idle (loop) · greet · talk1..3 (chained while a line is voiced)
+//   happy · excited · sad · thinking (one-shot reactions)
+// Two stacked <video>s crossfade, so switching clips never flashes black.
+// If video can't play, the poster frame (CSS background) stays visible.
+const WHALE_DIR = "/assets/whale/";
+// H.264 mp4 where supported (iOS needs it), VP9 WebM elsewhere (some
+// desktop Telegram builds / Chromium without proprietary codecs).
+const WHALE_EXT = (() => {
+  const v = document.createElement("video");
+  return v.canPlayType('video/mp4; codecs="avc1.4D401E"') ? ".mp4" : ".webm";
+})();
+const TALK_CLIPS = ["talk1", "talk2", "talk3"];
+const EMOTION_CLIP = {
+  happy: "happy", excited: "excited", proud: "excited",
+  sad: "sad", annoyed: "sad",
+  thinking: "thinking", worried: "thinking"
+  // neutral / surprised / smug: no reaction clip — he just talks
+};
+
+function createWhalePlayer(container) {
+  const vids = [0, 1].map(() => {
+    const v = document.createElement("video");
+    v.muted = true; v.defaultMuted = true;
+    v.playsInline = true; v.setAttribute("playsinline", ""); v.setAttribute("webkit-playsinline", "");
+    v.preload = "auto"; v.disablePictureInPicture = true;
+    v.setAttribute("aria-hidden", "true");
+    container.appendChild(v);
+    return v;
+  });
+  let front = 0, current = null, onEnd = null, active = true, broken = false, token = 0;
+
+  function show(name, { loop = false, then = null } = {}) {
+    if (broken) { then && setTimeout(then, 1200); return; }
+    const myToken = ++token;
+    onEnd = then;
+    current = name;
+    const next = vids[1 - front], prev = vids[front];
+    next.loop = loop;
+    next.onended = () => { if (myToken === token && onEnd) { const f = onEnd; onEnd = null; f(); } };
+    next.onerror = () => { broken = true; container.classList.add("no-video"); then && then(); };
+    next.src = WHALE_DIR + name + WHALE_EXT;
+    next.currentTime = 0;
+    const reveal = () => {
+      if (myToken !== token) return;
+      next.classList.add("on");
+      prev.classList.remove("on");
+      setTimeout(() => { if (myToken === token) prev.pause(); }, 320);
+    };
+    next.addEventListener("playing", reveal, { once: true });
+    if (active) {
+      const pr = next.play();
+      if (pr && pr.catch) pr.catch(() => { /* autoplay refused: poster stays */ });
+    }
+    front = 1 - front;
+  }
+
+  return {
+    get current() { return current; },
+    idle() { show("idle", { loop: true }); },
+    play(name, then) { show(name, { then }); },
+    setActive(on) {
+      active = on;
+      const v = vids[front];
+      if (!on) vids.forEach(x => x.pause());
+      else if (v.src) v.play()?.catch?.(() => {});
+    }
+  };
 }
 
-const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+// ---------- Whale host: voice ----------
+// Every remark has a pre-generated mp3 in /assets/voice/, named by a hash of
+// its text (scripts/generate-voice.mjs, run by the "Voice" GitHub Action).
+// A line without a file is simply shown silently. The key MUST stay in sync
+// with voiceKey() in scripts/generate-voice.mjs.
+function voiceText(text) {
+  return String(text)
+    .replace(/[^\p{L}\p{N}\s.,!?…:;«»"'()\-—–‑]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function voiceKey(text) {
+  let h = 0x811c9dc5;
+  const t = voiceText(text);
+  for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(16).padStart(8, "0");
+}
+
+// 0.1 s of silence as a WAV blob — used once to unlock audio on first tap.
+function silentWavUrl() {
+  const rate = 8000, n = 800, buf = new ArrayBuffer(44 + n * 2), d = new DataView(buf);
+  const str = (o, t) => [...t].forEach((c, i) => d.setUint8(o + i, c.charCodeAt(0)));
+  str(0, "RIFF"); d.setUint32(4, 36 + n * 2, true); str(8, "WAVEfmt ");
+  d.setUint32(16, 16, true); d.setUint16(20, 1, true); d.setUint16(22, 1, true);
+  d.setUint32(24, rate, true); d.setUint32(28, rate * 2, true); d.setUint16(32, 2, true); d.setUint16(34, 16, true);
+  str(36, "data"); d.setUint32(40, n * 2, true);
+  return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+}
+
+const voice = {
+  audio: new Audio(),
+  files: null,
+  unlocked: false,
+  on: (() => { try { return localStorage.getItem("wu_voice") !== "off"; } catch { return true; } })(),
+
+  async load() {
+    try {
+      const r = await fetch("/assets/voice/manifest.json", { cache: "no-cache" });
+      if (r.ok) this.files = (await r.json()).files || {};
+    } catch {}
+  },
+  // Browsers only allow sound after a tap: the first tap anywhere "unlocks"
+  // this one Audio element, and later lines play on it.
+  unlock() {
+    if (this.unlocked) return;
+    this.unlocked = true;
+    const a = this.audio;
+    a.src = silentWavUrl();
+    const silent = a.src;
+    const pr = a.play();
+    // only pause the silence — a real line may already have taken over
+    if (pr && pr.then) pr.then(() => { if (a.src === silent) a.pause(); }).catch(() => {});
+  },
+  setOn(on) {
+    this.on = on;
+    try { localStorage.setItem("wu_voice", on ? "on" : "off"); } catch {}
+    if (!on) this.stop();
+    document.querySelectorAll(".voice-btn").forEach(b => {
+      b.classList.toggle("off", !on);
+      b.setAttribute("aria-label", on ? "Выключить голос" : "Включить голос");
+    });
+  },
+  stop() { try { this.audio.pause(); } catch {} this.audio.onended = null; },
+  // Plays the line if a voice file exists; resolves when it's done (or at
+  // once, with false, when it can't play).
+  speak(text) {
+    this.stop();
+    const file = this.on && this.files && this.files[voiceKey(text)];
+    if (!file) return Promise.resolve(false);
+    return new Promise(resolve => {
+      const a = this.audio;
+      let done = false;
+      const finish = ok => { if (!done) { done = true; a.onended = null; a.onerror = null; resolve(ok); } };
+      a.onended = () => finish(true);
+      a.onerror = () => finish(false);
+      a.src = "/assets/voice/" + (file.file || file);
+      const pr = a.play();
+      if (pr && pr.catch) pr.catch(() => finish(false));
+      setTimeout(() => finish(true), 15000); // safety net
+    });
+  }
+};
+voice.load();
+document.addEventListener("pointerdown", () => voice.unlock(), { once: true, capture: true });
+
+// The two places the whale appears: the home hero and the quiz stage.
+// Only the visible one plays; both pause while the app is in background.
+const whale = {
+  quiz: null,
+  hero: null,
+  screen: "home-screen",
+  init() {
+    const q = $("whale-quiz");
+    if (q) { this.quiz = createWhalePlayer(q); this.quiz.setActive(false); this.quiz.idle(); }
+    const h = $("whale-hero");
+    if (h) { this.hero = createWhalePlayer(h); this.hero.play("greet", () => this.hero.idle()); }
+    document.querySelectorAll(".voice-btn").forEach(b => {
+      b.addEventListener("click", e => { e.stopPropagation(); voice.setOn(!voice.on); });
+    });
+    voice.setOn(voice.on);
+  },
+  setScreen(id) {
+    this.screen = id;
+    const visible = !document.hidden;
+    this.quiz?.setActive(visible && id === "quiz-screen");
+    this.hero?.setActive(visible && id === "home-screen");
+  }
+};
+whale.init();
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) voice.stop();
+  whale.setScreen(whale.screen);
+});
 
 const avatar = {
   typingTimer: null,
@@ -182,6 +352,7 @@ const avatar = {
   wrongTotal: 0,
   pokes: [],
   greeted: false,
+  performRun: 0,
 
   setEmotion(emotion) {
     const stage = $("avatar");
@@ -190,7 +361,6 @@ const avatar = {
     void stage.offsetWidth;
     stage.dataset.emotion = emotion;
     $("avatar-mood").textContent = MOODS[emotion]?.label || "НА СВЯЗИ";
-    applyPortrait($("avatar-frame"), emotion);
     this.particles(emotion);
   },
 
@@ -229,9 +399,37 @@ const avatar = {
       if (i >= chars.length) {
         clearInterval(this.typingTimer);
         el.classList.remove("typing");
-        stage.classList.remove("speaking");
       }
     }, 22);
+    this.perform(text, emotion);
+  },
+
+  // The whale acts the line out: reaction clip for the emotion (if any),
+  // then talking clips while the voice plays, then back to idle.
+  // Without a voice file he "talks" for about as long as reading takes.
+  perform(text, emotion) {
+    const p = whale.quiz;
+    if (!p) return;
+    const run = ++this.performRun;
+    let speaking = true;
+    const stage = $("avatar");
+    const reaction = EMOTION_CLIP[emotion];
+    const talkLoop = () => {
+      if (run !== this.performRun) return;
+      if (!speaking) { p.idle(); return; }
+      p.play(pick(TALK_CLIPS.filter(c => c !== p.current)), talkLoop);
+    };
+    if (reaction) p.play(reaction, talkLoop); else talkLoop();
+
+    const readMs = Math.min(6000, Math.max(1600, [...text].length * 55));
+    const fallback = new Promise(r => setTimeout(r, readMs));
+    voice.speak(text).then(played => (played ? null : fallback)).then(() => {
+      if (run !== this.performRun) return;
+      speaking = false;
+      stage.classList.remove("speaking");
+      // stop moving the mouth as soon as the voice stops; reactions finish
+      if (TALK_CLIPS.includes(p.current)) p.idle();
+    });
   },
 
   // After a strong reaction, drift back to a calm state.
@@ -477,6 +675,8 @@ function showScreen(id) {
   document.body.classList.toggle("arena-mode", id === "arena-screen");
   setArenaSwipeLock(id === "arena-screen");
   if (id !== "quiz-screen") $("next-dock").classList.add("hidden");
+  whale.setScreen(id);
+  if (id !== "quiz-screen" && id !== "result-screen") voice.stop();
   document.querySelectorAll(".nav-item").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.screen === id);
   });
@@ -592,8 +792,8 @@ function showResult() {
 
   const line = avatar.resultLine(state.score, state.total);
   $("result-avatar").dataset.emotion = line.emotion;
-  applyPortrait($("result-avatar").querySelector(".avatar-frame"), line.emotion);
   $("result-quote").textContent = `«${line.text}»`;
+  voice.speak(line.text);
 
   $("result-copy").textContent =
     `Правильных ${plural(state.score, ["ответ", "ответа", "ответов"])}: ${state.score} из ${state.total}.`;
