@@ -63,6 +63,29 @@ button { font: inherit; }
   margin-bottom:14px;
 }
 .hero-glow { position:absolute; width:260px; height:260px; background:rgba(59,130,246,.18); filter:blur(70px); right:-80px; top:-50px; }
+/* ---------- Whale host (video) ---------- */
+.whale-stage {
+  position:absolute; inset:0; overflow:hidden;
+  background:#0b1120 url("/assets/whale/poster.jpg") 50% 18% / cover no-repeat;
+}
+.whale-stage video {
+  position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:50% 18%;
+  opacity:0; transition:opacity .28s ease; pointer-events:none;
+}
+.whale-stage video.on { opacity:1; }
+.hero-whale { position:relative; height:330px; }
+.hero-whale::after { content:""; position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(180deg, rgba(11,17,32,.0) 55%, rgba(11,17,32,.65) 100%); }
+.voice-btn {
+  position:absolute; top:10px; right:10px; z-index:4; width:34px; height:34px; border-radius:50%;
+  display:grid; place-items:center; cursor:pointer; color:#e2e8f0;
+  background:rgba(11,17,32,.62); border:1px solid rgba(148,163,184,.25); backdrop-filter:blur(6px);
+}
+.voice-btn svg { width:17px; height:17px; }
+.voice-btn .ic-off, .voice-btn.off .ic-on { display:none; }
+.voice-btn.off .ic-off { display:block; }
+.voice-btn.off { color:#94a3b8; }
+
 .hero-emblem {
   position:relative; height:310px; display:grid; place-items:center; overflow:hidden;
   background:
@@ -126,15 +149,17 @@ h1 span { color:var(--accent); }
 [data-emotion="annoyed"]  { --mood:#ff5d5d; }
 
 .avatar-stage {
-  position:relative; height:clamp(230px, 38vh, 330px); margin-bottom:12px;
+  position:relative; height:clamp(250px, 42vh, 360px); margin-bottom:12px;
   border:1px solid var(--line); border-radius:24px; overflow:hidden;
   background:
     repeating-radial-gradient(circle at 50% 40%, rgba(148,163,184,.06) 0 1px, transparent 1px 34px),
     linear-gradient(180deg,#0d1730,#081022);
   cursor:pointer; -webkit-user-select:none; user-select:none;
   transition:border-color .4s;
+  border-color:color-mix(in srgb, var(--mood) 35%, rgba(148,163,184,.14));
 }
-.avatar-stage:active .avatar-frame { filter:brightness(1.12); }
+.avatar-stage:active .whale-stage { filter:brightness(1.1); }
+.avatar-stage .avatar-frame { display:none; } /* the video whale replaces it */
 /* Host = the Whale Union emblem; its mood shows as the glow behind it.
    Custom portraits (assets/avatar/<emotion>.jpg) still fill the whole frame. */
 .avatar-frame {
@@ -200,7 +225,7 @@ h1 span { color:var(--accent); }
 
 .avatar-glow {
   position:absolute; inset:0; pointer-events:none; z-index:1;
-  background:radial-gradient(circle at 50% 33%, color-mix(in srgb, var(--mood) 30%, transparent), transparent 46%),
+  background:radial-gradient(120% 90% at 50% 30%, transparent 55%, color-mix(in srgb, var(--mood) 22%, transparent) 100%),
              linear-gradient(transparent 55%, rgba(8,14,28,.95));
   transition:background .5s;
 }
@@ -303,7 +328,8 @@ body.quiz-mode .app-shell { padding-bottom:110px; }
   border:2px solid var(--mood); box-shadow:0 0 28px color-mix(in srgb, var(--mood) 40%, transparent);
 }
 .result-avatar { background:radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--mood) 26%, #0d1526), #0b1120 70%); }
-.result-avatar .avatar-frame { width:62%; left:19%; top:54%; }
+.result-avatar .avatar-frame { width:100%; left:0; top:50%;
+  background:url("/assets/whale/face.jpg") center / cover no-repeat; }
 .result-avatar .avatar-frame.custom { width:150%; left:-25%; top:50%; }
 .avatar-quote { font-size:12px; color:#e2e8f0; font-style:italic; margin:0 0 16px; min-height:17px; }
 .btn-stack { display:grid; gap:10px; margin-top:16px; }

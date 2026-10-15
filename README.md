@@ -145,15 +145,35 @@ Options:
   uptime monitor (cron-job.org, UptimeRobot). One always-on service fits into
   the free 750 instance hours per month.
 
-## Avatar emotions
-During the quiz the host reacts with emotions: `neutral`, `thinking`, `happy`,
-`excited`, `sad`, `surprised`. By default the host is the Whale Union emblem
-(`public/assets/whale-logo.png`); the mood shows as the glow color behind it and its motion.
+## The Whale (host)
+The host is an animated whale built from short video clips in `public/assets/whale/`
+(each as `.mp4` for iOS and `.webm` for everything else; the app picks what the device plays):
 
-To give the host real facial expressions, add square portraits (same framing,
-~720×720) to `public/assets/avatar/<emotion>.jpg`, e.g. `happy.jpg`, `sad.jpg`.
-Any file that exists is picked up automatically; missing ones fall back to the default.
-Remarks are in `LINES` in `public/app.js`.
+| clip | when |
+|---|---|
+| `idle` | loop while he is silent |
+| `greet` | once on the home screen |
+| `talk1`–`talk3` | chained while a remark is voiced |
+| `happy`, `excited`, `sad`, `thinking` | one-shot reactions (proud→excited, annoyed→sad, worried→thinking) |
+
+`poster.jpg` shows until video starts (and stays if video can't play); `face.jpg` is the round
+portrait on the result and profile screens. Clips were made in Kling (image-to-video from the
+whale picture), the watermark cropped off, audio removed.
+
+### Voice
+Every remark in `LINES` (`public/app.js`) has an mp3 in `public/assets/voice/`, named by a hash
+of its text and listed in `manifest.json`. A remark without a file is shown silently.
+The 🔊 button on the whale's stage mutes/unmutes (remembered per device).
+
+The files are generated with ElevenLabs by the **Whale voice** GitHub Action:
+1. Repo → **Settings → Secrets and variables → Actions → New repository secret**:
+   name `ELEVENLABS_API_KEY`, value = your ElevenLabs API key.
+2. **Actions → Whale voice → Run workflow**, paste the **Voice ID** once.
+   The action voices all lines and commits the mp3s; Render redeploys by itself.
+3. Later, when remarks in `public/app.js` change, the action runs on its own and voices only
+   the new lines (same voice). To switch voice, run it again with another Voice ID.
+
+Locally: `ELEVENLABS_API_KEY=… ELEVENLABS_VOICE_ID=… npm run voice` (`--dry` lists the lines).
 
 ## Arena (mini-game tab)
 The **АРЕНА** tab in the bottom nav opens the arena mini-game: 8 levels in

@@ -34,9 +34,8 @@
     <section id="home-screen" class="screen active">
       <div class="hero-card">
         <div class="hero-glow"></div>
-        <div class="hero-emblem" aria-hidden="true">
-          <div class="sonar"></div><div class="sonar two"></div>
-          <img src="/assets/whale-logo.png" alt="">
+        <div class="hero-whale" aria-hidden="true">
+          <div class="whale-stage" id="whale-hero"></div>
         </div>
         <div class="hero-copy">
           <div class="eyebrow">ЕЖЕДНЕВНЫЙ КВЕСТ</div>
@@ -72,6 +71,11 @@
       </div>
 
       <div class="avatar-stage" id="avatar" data-emotion="neutral" title="Ткни меня">
+        <div class="whale-stage" id="whale-quiz"></div>
+        <button class="voice-btn" type="button" aria-label="Выключить голос">
+          <svg class="ic-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+          <svg class="ic-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg>
+        </button>
         <div class="avatar-glow"></div>
         <div class="avatar-frame" id="avatar-frame">
           <div class="avatar-led"></div>
