@@ -22,6 +22,8 @@ const DDL = [
      tier TEXT, score INTEGER NOT NULL, total INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), claimed_at TIMESTAMPTZ)`,
   `CREATE INDEX IF NOT EXISTS wu_rewards_user_idx ON wu_rewards (user_id, id DESC)`,
+  `CREATE TABLE IF NOT EXISTS wu_settings (
+     key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`,
   `CREATE TABLE IF NOT EXISTS wu_arena_players (
      id TEXT PRIMARY KEY, bonus_bp INTEGER NOT NULL DEFAULT 0, data JSONB NOT NULL,
      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`
@@ -44,6 +46,17 @@ async function copyOnce(src, dst) {
     }
     report.push(`${from}→${to}: ${rows.length}`);
   }
+  // hand the service settings over, so the new service needs no manual copy
+  const SETTINGS = ["BOT_TOKEN", "ADMIN_CHAT_ID", "ADMIN_USERNAME", "QUEST_TZ", "QUESTIONS_PER_DAY",
+    "ALLOW_DEMO", "INIT_DATA_MAX_AGE_SECONDS"];
+  let n = 0;
+  for (const k of SETTINGS) {
+    if (process.env[k] === undefined || process.env[k] === "") continue;
+    await dst.query(`INSERT INTO wu_settings (key, value, updated_at) VALUES ($1, $2, NOW())
+      ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`, [k, process.env[k]]);
+    n++;
+  }
+  report.push(`settings: ${n}`);
   await dst.query(`SELECT setval(pg_get_serial_sequence('wu_rewards','id'), GREATEST((SELECT COALESCE(MAX(id),0) FROM wu_rewards), 1))`);
   return report.join(", ");
 }
